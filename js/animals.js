@@ -153,3 +153,4 @@ class AnimalManager {
 
 window.AnimalManager = AnimalManager;
 window.FarmAnimal = FarmAnimal;
+

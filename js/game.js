@@ -1267,3 +1267,4 @@ class Game {
 }
 
 window.Game = Game;
+

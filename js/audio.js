@@ -353,3 +353,4 @@ class SoundSystem {
 
 // Global instance
 window.soundSystem = new SoundSystem();
+

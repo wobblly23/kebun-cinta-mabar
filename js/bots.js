@@ -287,3 +287,4 @@ class BotManager {
 
 window.BotManager = BotManager;
 window.HelperBot = HelperBot;
+

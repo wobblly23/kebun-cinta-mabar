@@ -326,3 +326,4 @@ class NetworkManager {
 }
 
 window.NetworkManager = NetworkManager;
+

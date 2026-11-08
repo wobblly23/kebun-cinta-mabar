@@ -544,3 +544,4 @@ class FarmManager {
 window.FarmManager = FarmManager;
 window.CROP_DEFINITIONS = CROP_DEFINITIONS;
 window.LOVE_LEVEL_TITLES = LOVE_LEVEL_TITLES;
+

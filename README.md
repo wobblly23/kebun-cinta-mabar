@@ -110,3 +110,4 @@ Menggunakan teknologi **WebRTC Peer-to-Peer (P2P)** via PeerJS, koneksi langsung
 ---
 
 *Dibuat dengan penuh cinta untuk menemani waktu santai berkualitas bersama pasangan.* 🌾❤️✨
+
