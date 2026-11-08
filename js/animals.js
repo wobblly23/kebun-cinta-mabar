@@ -1,5 +1,5 @@
-// js/animals.js - Pasture Animals & Interaction
-// Cow, Chicken, Pig, Sheep, and Baby Chick with grazing AI and couple petting interaction!
+// js/animals.js - Pasture Animals System
+// Animals start EMPTY and appear when purchased from Mak Siti's Animal Ranch!
 
 class FarmAnimal {
   constructor(id, name, type, x, y, bounds, farm) {
@@ -7,46 +7,40 @@ class FarmAnimal {
     this.name = name;
     this.type = type; // 'cow', 'chicken', 'pig', 'sheep', 'baby_chick'
     this.farm = farm;
-    this.bounds = bounds; // { minX, maxX, minY, maxY }
+    this.bounds = bounds;
 
     this.x = x * farm.tileSize;
     this.y = y * farm.tileSize;
     this.speed = type === 'baby_chick' ? 24 : (type === 'chicken' ? 20 : 16);
 
-    this.dir = 'right'; // 'left', 'right'
-    this.state = 'idle'; // 'idle', 'grazing', 'walking'
+    this.dir = 'right';
+    this.state = 'idle';
     this.timer = 2 + Math.random() * 3;
     this.frame = 0;
     this.animTimer = 0;
 
-    // Petting cooldown & floating hearts
     this.petCooldown = 0;
-    this.hearts = []; // [{ x, y, vy, life }]
+    this.hearts = [];
   }
 
   update(delta) {
-    // Update animation frames
     this.animTimer += delta;
     if (this.animTimer >= 0.25) {
       this.animTimer = 0;
-      this.frame = (this.frame + 1) % 2; // 2 frames per animal
+      this.frame = (this.frame + 1) % 2;
     }
 
     if (this.petCooldown > 0) {
       this.petCooldown -= delta;
     }
 
-    // Update floating hearts
     for (let i = this.hearts.length - 1; i >= 0; i--) {
       const h = this.hearts[i];
       h.y += h.vy * delta;
       h.life -= delta;
-      if (h.life <= 0) {
-        this.hearts.splice(i, 1);
-      }
+      if (h.life <= 0) this.hearts.splice(i, 1);
     }
 
-    // AI state timer
     this.timer -= delta;
     if (this.timer <= 0) {
       const r = Math.random();
@@ -59,7 +53,6 @@ class FarmAnimal {
       } else {
         this.state = 'walking';
         this.timer = 2 + Math.random() * 2;
-        // Pick new random direction
         this.targetX = (this.bounds.minX + Math.random() * (this.bounds.maxX - this.bounds.minX)) * this.farm.tileSize;
         this.targetY = (this.bounds.minY + Math.random() * (this.bounds.maxY - this.bounds.minY)) * this.farm.tileSize;
       }
@@ -84,10 +77,9 @@ class FarmAnimal {
 
   pet() {
     if (this.petCooldown > 0) return null;
-    this.petCooldown = 15; // 15s cooldown per animal
+    this.petCooldown = 15;
 
-    // Spawn floating hearts
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 4; i++) {
       this.hearts.push({
         x: this.x + 8 + (Math.random() * 12 - 6),
         y: this.y - 4,
@@ -99,19 +91,18 @@ class FarmAnimal {
     if (window.soundSystem) window.soundSystem.playPet();
     this.farm.addLovePoints(15);
 
-    // Yield produce
     let produce = null;
     if (this.type === 'cow') {
-      produce = { name: 'Susu Segar 🥛', id: 'milk', count: 1 };
+      produce = { name: 'Susu Segar 🥛', id: 'milk' };
       this.farm.chest.produce.milk = (this.farm.chest.produce.milk || 0) + 1;
     } else if (this.type === 'chicken') {
-      produce = { name: 'Telur Emas 🥚', id: 'egg', count: 1 };
+      produce = { name: 'Telur Emas 🥚', id: 'egg' };
       this.farm.chest.produce.egg = (this.farm.chest.produce.egg || 0) + 1;
     } else if (this.type === 'sheep') {
-      produce = { name: 'Wol Lembut 🧶', id: 'wool', count: 1 };
+      produce = { name: 'Wol Lembut 🧶', id: 'wool' };
       this.farm.chest.produce.wool = (this.farm.chest.produce.wool || 0) + 1;
     } else {
-      produce = { name: 'Kasih Sayang ❤️', id: null, count: 0 };
+      produce = { name: 'Kasih Sayang ❤️', id: null };
     }
 
     this.farm.autoSave();
@@ -122,22 +113,29 @@ class FarmAnimal {
 class AnimalManager {
   constructor(farm) {
     this.farm = farm;
-    const pastureBounds = { minX: 3, maxX: 11, minY: 3, maxY: 10 };
+    this.pastureBounds = { minX: 3, maxX: 11, minY: 3, maxY: 12 };
+    this.animals = [];
+    this.syncFromFarm();
+  }
 
-    this.animals = [
-      new FarmAnimal('cow1', 'Bessie Si Sapi', 'cow', 5, 5, pastureBounds, farm),
-      new FarmAnimal('sheep1', 'Fluffy Si Domba', 'sheep', 9, 6, pastureBounds, farm),
-      new FarmAnimal('pig1', 'Barnaby Si Babi', 'pig', 7, 8, pastureBounds, farm),
-      new FarmAnimal('chicken1', 'Chicky Si Ayam', 'chicken', 4, 7, pastureBounds, farm),
-      new FarmAnimal('chick1', 'Pipit Anak Ayam', 'baby_chick', 8, 4, pastureBounds, farm)
-    ];
+  syncFromFarm() {
+    this.animals = [];
+    if (this.farm.ownedAnimals && Array.isArray(this.farm.ownedAnimals)) {
+      this.farm.ownedAnimals.forEach(oa => {
+        this.animals.push(new FarmAnimal(oa.id, oa.name, oa.type, oa.x, oa.y, this.pastureBounds, this.farm));
+      });
+    }
   }
 
   update(delta) {
+    // Keep sync with farm owned animals count
+    if (this.animals.length !== (this.farm.ownedAnimals || []).length) {
+      this.syncFromFarm();
+    }
     this.animals.forEach(a => a.update(delta));
   }
 
-  getNearestAnimal(px, py, maxDist = 32) {
+  getNearestAnimal(px, py, maxDist = 36) {
     let nearest = null;
     let minDist = maxDist;
     this.animals.forEach(a => {
@@ -153,4 +151,3 @@ class AnimalManager {
 
 window.AnimalManager = AnimalManager;
 window.FarmAnimal = FarmAnimal;
-

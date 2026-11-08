@@ -13,11 +13,9 @@ class NetworkManager {
     this.roomCode = '';
     this.syncInterval = null;
 
-    // Room ID prefix to avoid collisions on public PeerJS server
     this.APP_PREFIX = 'kebun-mabar-';
   }
 
-  // --- Host Mode: Create Room ---
   hostRoom(customCode = '', onReady = null, onConnect = null) {
     this.isHost = true;
     const cleanCode = (customCode || this.generateRoomCode()).toLowerCase().trim();
@@ -41,12 +39,10 @@ class NetworkManager {
 
     this.peer.on('open', (id) => {
       this.myPeerId = id;
-      console.log('Room Host Terbuka! ID:', id, 'Kode Kamar:', this.roomCode);
       if (onReady) onReady(this.roomCode);
     });
 
     this.peer.on('connection', (conn) => {
-      console.log('Pasangan sedang mencoba terhubung...');
       this.conn = conn;
       this.setupConnectionEvents(onConnect);
     });
@@ -54,14 +50,12 @@ class NetworkManager {
     this.peer.on('error', (err) => {
       console.warn('Peer error:', err);
       if (err.type === 'unavailable-id') {
-        // Room ID is taken, generate new one
         const fallback = this.generateRoomCode();
         this.hostRoom(fallback, onReady, onConnect);
       }
     });
   }
 
-  // --- Guest Mode: Join Room ---
   joinRoom(code, onConnect = null, onError = null) {
     this.isHost = false;
     const cleanCode = code.toLowerCase().trim();
@@ -69,7 +63,6 @@ class NetworkManager {
     const targetPeerId = `${this.APP_PREFIX}${cleanCode}`;
 
     try {
-      // Connect as an ephemeral client peer
       this.peer = new Peer({
         debug: 1,
         config: {
@@ -80,22 +73,17 @@ class NetworkManager {
         }
       });
     } catch (e) {
-      console.error('Peer creation failed:', e);
       if (onError) onError(e);
       return;
     }
 
     this.peer.on('open', (id) => {
       this.myPeerId = id;
-      console.log('Client Peer Aktif! Menghubungkan ke:', targetPeerId);
-      this.conn = this.peer.connect(targetPeerId, {
-        reliable: true
-      });
+      this.conn = this.peer.connect(targetPeerId, { reliable: true });
       this.setupConnectionEvents(onConnect);
     });
 
     this.peer.on('error', (err) => {
-      console.warn('Peer join error:', err);
       if (onError) onError(err);
     });
   }
@@ -106,20 +94,15 @@ class NetworkManager {
     this.conn.on('open', () => {
       this.isConnected = true;
       this.partnerPeerId = this.conn.peer;
-      console.log('🎉 P2P BERHASIL TERHUBUNG! Main Berdua Aktif! 🎉');
 
       this.game.onPeerConnected(this.isHost);
       if (onConnect) onConnect();
 
-      // If Host, send initial World Snapshot to Guest immediately!
       if (this.isHost) {
         this.sendWorldSnapshot();
       }
 
-      // Send our player info
       this.sendPlayerInfo();
-
-      // Start high-frequency player position sync
       this.startSyncLoop();
     });
 
@@ -128,7 +111,6 @@ class NetworkManager {
     });
 
     this.conn.on('close', () => {
-      console.warn('Koneksi P2P ditutup oleh pasangan');
       this.isConnected = false;
       this.stopSyncLoop();
       this.game.onPeerDisconnected();
@@ -139,13 +121,10 @@ class NetworkManager {
     });
   }
 
-  // --- Sync Loops ---
   startSyncLoop() {
     this.stopSyncLoop();
-    // 30 Hz position sync
     this.syncInterval = setInterval(() => {
       if (this.isConnected && this.conn && this.conn.open) {
-        // Send local player state
         const p = this.game.player;
         this.send({
           type: 'player_move',
@@ -154,10 +133,11 @@ class NetworkManager {
           dir: p.dir,
           isMoving: p.isMoving,
           animFrame: p.animFrame,
-          action: p.currentAction
+          action: p.currentAction,
+          location: this.game.farm.currentLocation,
+          isFishing: p.isFishing
         });
 
-        // Host periodically syncs world state and bots
         if (this.isHost) {
           this.send({
             type: 'world_sync',
@@ -166,11 +146,15 @@ class NetworkManager {
             coins: this.game.farm.coins,
             lovePoints: this.game.farm.lovePoints,
             loveLevel: this.game.farm.loveLevel,
+            unlockedTools: this.game.farm.unlockedTools,
+            unlockedBots: this.game.farm.unlockedBots,
+            ownedAnimals: this.game.farm.ownedAnimals,
+            ownedFurniture: this.game.farm.ownedFurniture,
             bots: this.game.botManager ? this.game.botManager.getBotsData() : []
           });
         }
       }
-    }, 40); // 25 times per second
+    }, 40);
   }
 
   stopSyncLoop() {
@@ -180,7 +164,6 @@ class NetworkManager {
     }
   }
 
-  // --- Send Helper ---
   send(messageObj) {
     if (this.conn && this.conn.open) {
       try {
@@ -191,7 +174,6 @@ class NetworkManager {
     }
   }
 
-  // Send full snapshot
   sendWorldSnapshot() {
     this.send({
       type: 'initial_snapshot',
@@ -204,18 +186,17 @@ class NetworkManager {
     this.send({
       type: 'player_info',
       name: this.game.player.name,
-      role: this.game.player.role // 'boy' or 'girl'
+      role: this.game.player.role
     });
   }
 
-  // --- Handle Received Messages ---
   handleIncomingData(data) {
     if (!data || !data.type) return;
 
     switch (data.type) {
       case 'initial_snapshot':
-        console.log('Menerima snapshot kebun dari Host!');
         this.game.farm.applySnapshot(data.snapshot);
+        this.game.animalManager.syncFromFarm();
         if (this.game.botManager && data.bots) {
           this.game.botManager.applyBotsData(data.bots);
         }
@@ -234,6 +215,8 @@ class NetworkManager {
         this.game.partner.isMoving = data.isMoving;
         this.game.partner.animFrame = data.animFrame;
         this.game.partner.currentAction = data.action;
+        this.game.partner.location = data.location || 'farm';
+        this.game.partner.isFishing = !!data.isFishing;
         break;
 
       case 'world_sync':
@@ -242,10 +225,25 @@ class NetworkManager {
         this.game.farm.coins = data.coins;
         this.game.farm.lovePoints = data.lovePoints;
         this.game.farm.loveLevel = data.loveLevel;
+        if (data.unlockedTools) this.game.farm.unlockedTools = data.unlockedTools;
+        if (data.unlockedBots) this.game.farm.unlockedBots = data.unlockedBots;
+        if (data.ownedAnimals) {
+          this.game.farm.ownedAnimals = data.ownedAnimals;
+          this.game.animalManager.syncFromFarm();
+        }
+        if (data.ownedFurniture) this.game.farm.ownedFurniture = data.ownedFurniture;
         if (this.game.botManager && data.bots) {
           this.game.botManager.applyBotsData(data.bots);
         }
         this.game.updateHUD();
+        break;
+
+      case 'location_change':
+        this.game.partner.location = data.location;
+        break;
+
+      case 'animal_bought':
+        this.game.animalManager.syncFromFarm();
         break;
 
       case 'action_till':
@@ -285,13 +283,9 @@ class NetworkManager {
         this.game.triggerCoupleKiss(true);
         break;
 
-      case 'action_hug':
-        this.game.triggerCoupleHug(true);
-        break;
-
       case 'action_sleep':
         this.game.farm.sleepTogether();
-        this.game.showNotification('Kalian tidur bersama dan bangun di pagi yang cerah! ☀️');
+        this.game.showNotification('Kalian berdua tidur bersama dan menyambut pagi! ☀️🛏️');
         break;
 
       case 'action_pet_animal':
@@ -301,7 +295,6 @@ class NetworkManager {
     }
   }
 
-  // Generate cute 5-digit room code
   generateRoomCode() {
     const chars = '23456789abcdefghjkmnpqrstuvwxyz';
     let code = '';
@@ -326,4 +319,3 @@ class NetworkManager {
 }
 
 window.NetworkManager = NetworkManager;
-

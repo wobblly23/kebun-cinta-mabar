@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Kebun Cinta Kita - Game Mabar P2P</title>
   <link rel="stylesheet" href="style.css">
-  <!-- PeerJS CDN for WebRTC Peer-to-Peer Zero-Backend Multiplayer -->
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
 <body>
@@ -16,7 +15,7 @@
       <div class="heart-banner">🌾 Kebun Cinta Kita 💖</div>
       <p class="lobby-sub">Game Mabar Santai Berdua bersama Pacar Tercinta</p>
 
-      <!-- Role & Character Selection -->
+      <!-- Role Selection -->
       <div class="char-select-container">
         <div class="char-box active" id="selectBoy" onclick="selectRole('boy')">
           <img src="assets/characters/portrait_boy.png" alt="Cowok" class="portrait-preview">
@@ -43,7 +42,7 @@
         <div class="join-divider"><span>atau gabung kebun pasangan</span></div>
 
         <div class="join-form">
-          <input type="text" id="inputRoomCode" placeholder="Masukkan Kode Kamar..." maxlength="10">
+          <input type="text" id="inputRoomCode" placeholder="Kode Kamar..." maxlength="10">
           <button class="btn btn-secondary" id="btnJoinGame" onclick="startJoinGame()">
             💌 Gabung (Join)
           </button>
@@ -67,7 +66,6 @@
   <div id="gameHUD" class="hud-container hidden">
     <!-- Top Left: Profiles -->
     <div class="hud-top-left">
-      <!-- Local Player Card -->
       <div class="player-card">
         <img id="localPortrait" src="assets/characters/portrait_boy.png" class="hud-avatar" alt="Avatar">
         <div class="player-meta">
@@ -76,7 +74,6 @@
         </div>
       </div>
 
-      <!-- Partner Card -->
       <div class="player-card partner-card" id="partnerCard">
         <img id="partnerPortrait" src="assets/characters/portrait_girl.png" class="hud-avatar" alt="Partner">
         <div class="player-meta">
@@ -97,11 +94,11 @@
       </div>
     </div>
 
-    <!-- Top Right: Coins & Action Tools -->
+    <!-- Top Right: Coins & Buttons -->
     <div class="hud-top-right">
       <div class="coin-pill">
         <span>🪙</span>
-        <strong id="hudCoins">150</strong>
+        <strong id="hudCoins">60</strong>
       </div>
       <div class="icon-btn-row">
         <button class="icon-btn" id="btnToggleSound" title="Suara">🔊</button>
@@ -117,7 +114,7 @@
     <div class="emote-bar">
       <button class="emote-btn" onclick="game.showEmote('❤️')">❤️</button>
       <button class="emote-btn" onclick="game.triggerCoupleKiss(false)">😘</button>
-      <button class="emote-btn" onclick="game.triggerCoupleHug(false)">🤗</button>
+      <button class="emote-btn" onclick="game.showEmote('🤗')">🤗</button>
       <button class="emote-btn" onclick="game.showEmote('🌸')">🌸</button>
       <button class="emote-btn" onclick="game.showEmote('☕')">☕</button>
       <button class="emote-btn" onclick="game.showEmote('🎉')">🎉</button>
@@ -150,15 +147,15 @@
         <span class="slot-icon">🍅</span>
         <span class="slot-name">Tomat</span>
       </div>
-      <div class="hotbar-slot" data-tool="harvest" onclick="game.selectTool('harvest')">
+      <div class="hotbar-slot" data-tool="fishing_rod" onclick="game.selectTool('fishing_rod')">
         <span class="key-hint">6</span>
-        <span class="slot-icon">🧺</span>
-        <span class="slot-name">Panen</span>
+        <span class="slot-icon">🎣</span>
+        <span class="slot-name">Pancing</span>
       </div>
       <div class="hotbar-slot" data-tool="flower" onclick="game.selectTool('flower')">
         <span class="key-hint">7</span>
         <span class="slot-icon">💖</span>
-        <span class="slot-name">Kasih Bunga</span>
+        <span class="slot-name">Bunga</span>
       </div>
     </div>
 
@@ -175,81 +172,101 @@
 
     <!-- Mobile Virtual Controls -->
     <div class="mobile-controls" id="mobileControls">
-      <!-- Joystick -->
       <div class="joystick-base" id="joystickBase">
         <div class="joystick-stick" id="joystickStick"></div>
       </div>
-      <!-- Action Buttons -->
       <div class="touch-action-pad">
-        <button class="touch-btn btn-tool-cycle" id="btnToolCycle">🔄 Alat</button>
+        <button class="touch-btn btn-tool-cycle" id="btnToolCycle">🔄 Ganti Alat</button>
         <button class="touch-btn btn-emote-touch" id="btnEmote">❤️ Emote</button>
-        <button class="touch-btn btn-interact" id="btnInteract">🖐️ Ambil/Elus [E]</button>
-        <button class="touch-btn btn-action-main" id="btnAction">✨ Aksi [Spasi]</button>
+        <button class="touch-btn btn-interact" id="btnInteract">🖐️ Aksi/Bicara [E]</button>
+        <button class="touch-btn btn-action-main" id="btnAction">✨ Gunakan Alat [Spasi]</button>
       </div>
     </div>
   </div>
 
   <!-- ================= MODALS ================= -->
 
+  <!-- Modal: Dialog Interaktif NPC -->
+  <div id="modalNPC" class="modal-overlay hidden">
+    <div class="modal-content npc-modal-content">
+      <div class="modal-header">
+        <h3 id="npcName">Nama NPC</h3>
+        <button class="modal-close" onclick="document.getElementById('modalNPC').classList.add('hidden')">&times;</button>
+      </div>
+      <div class="modal-body npc-body">
+        <div class="npc-profile-box">
+          <img id="npcPortrait" src="assets/npcs/npc_merchant.png" class="npc-avatar-big" alt="NPC">
+          <div class="npc-dialog-bubble" id="npcDialogText">Halo! Selamat datang di desa kebun cinta.</div>
+        </div>
+        <div class="npc-actions-grid" id="npcActions"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Toko Pembelian (Seeds, Furniture, Animals) -->
+  <div id="modalStore" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="storeTitle">Toko Belanja</h3>
+        <button class="modal-close" onclick="document.getElementById('modalStore').classList.add('hidden')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="store-grid" id="storeItemsList"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: Peti Bersama (Shared Chest) -->
   <div id="modalChest" class="modal-overlay hidden">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>📦 Peti Kebun Bersama</h3>
+        <h3>📦 Peti Bersama</h3>
         <button class="modal-close" onclick="document.getElementById('modalChest').classList.add('hidden')">&times;</button>
       </div>
       <div class="modal-body">
-        <h4>Bibit Tanaman (Klik Beli untuk tambah stok):</h4>
+        <h4>Bibit Tersimpan:</h4>
         <div class="chest-grid" id="chestSeedsList"></div>
-        <h4 style="margin-top: 15px;">Hasil Panen & Hewan:</h4>
+        <h4 style="margin-top: 15px;">Hasil Panen, Ikan & Peternakan:</h4>
         <div class="chest-grid" id="chestProduceList"></div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="game.farm.sellAllProduce(); game.openChestModal(); game.updateHUD();">
+        <button class="btn btn-secondary" onclick="game.sellProduce(); game.openChestModal();">
           🪙 Jual Semua Hasil Panen ke Kotak Jual
         </button>
       </div>
     </div>
   </div>
 
-  <!-- Modal: Pekerja Bot (Bots Manager) -->
+  <!-- Modal: Pengaturan & Sewa Bot (Bots Manager) -->
   <div id="modalBots" class="modal-overlay hidden">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>🤖 Pengaturan Pekerja Kebun (Bots)</h3>
+        <h3>🤖 Pekerja Kebun (Bots)</h3>
         <button class="modal-close" onclick="document.getElementById('modalBots').classList.add('hidden')">&times;</button>
       </div>
       <div class="modal-body">
-        <p class="modal-desc">Bot akan membantumu dan pasangan merawat kebun secara otomatis!</p>
+        <p class="modal-desc">Kumpulkan koin cinta untuk menyewa pembantu kebun otomatis!</p>
 
-        <!-- Bot 1: Boni -->
-        <div class="bot-card">
-          <img src="assets/characters/portrait_boy.png" class="bot-avatar" style="filter: contrast(1.5) grayscale(0.8);" alt="Boni">
-          <div class="bot-info">
-            <strong>Boni Si Kerangka Rajin 💀</strong>
-            <p>Spesialis memanen sayur matang & menyimpannya ke peti bersama.</p>
-            <div class="bot-toggle-row">
-              <label>Status: </label>
-              <select onchange="updateBotSettings('boni', this.value)">
-                <option value="harvest" selected>🌾 Bantu Panen Tanaman</option>
-                <option value="idle">💤 Istirahat / Santai</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <!-- Bot 2: Slimey -->
+        <!-- Bot 1: Slimey -->
         <div class="bot-card">
           <div class="bot-avatar-emoji">🟢</div>
           <div class="bot-info">
             <strong>Slimey Si Slime Air 💦</strong>
-            <p>Spesialis menyiram tanah kering agar tanaman tumbuh 2.5x lebih cepat.</p>
-            <div class="bot-toggle-row">
-              <label>Status: </label>
-              <select onchange="updateBotSettings('slime', this.value)">
-                <option value="water" selected>💧 Bantu Siram Tanah Kering</option>
-                <option value="idle">💤 Istirahat / Santai</option>
-              </select>
+            <p>Menyiram semua tanah kering otomatis agar tanaman tumbuh 2.5x lebih cepat.</p>
+            <div id="botStatus_slime">
+              <button class="btn-buy" onclick="hireBotAction('slime', 100)">Sewa Slimey (100 🪙)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bot 2: Boni -->
+        <div class="bot-card">
+          <div class="bot-avatar-emoji">💀</div>
+          <div class="bot-info">
+            <strong>Boni Si Panen Rajin 🧺</strong>
+            <p>Mencari tanaman matang dan memetiknya langsung ke dalam peti bersama.</p>
+            <div id="botStatus_boni">
+              <button class="btn-buy" onclick="hireBotAction('boni', 180)">Sewa Boni (180 🪙)</button>
             </div>
           </div>
         </div>
@@ -265,15 +282,13 @@
         <button class="modal-close" onclick="document.getElementById('modalSave').classList.add('hidden')">&times;</button>
       </div>
       <div class="modal-body">
-        <p>Game ini <strong>otomatis tersimpan</strong> di browser kamu setiap saat!</p>
-        <p>Kamu juga bisa mengunduh file cadangan (.json) agar progres kebunmu aman selamanya dan bisa dipindahkan ke HP / Laptop lain.</p>
-        
+        <p>Game ini <strong>otomatis tersimpan</strong> di perambanmu!</p>
         <div class="save-actions">
-          <button class="btn btn-primary" onclick="game.farm.autoSave(); game.showNotification('Kebun berhasil disimpan di peramban! 💾✨');">
+          <button class="btn btn-primary" onclick="game.farm.autoSave(); game.showNotification('Data kebun disimpan! 💾');">
             ⚡ Simpan Cepat Sekarang
           </button>
           <button class="btn btn-secondary" onclick="game.farm.exportSaveFile()">
-            📥 Unduh File Cadangan Kebun (.json)
+            📥 Unduh File Cadangan (.json)
           </button>
           <div class="import-section">
             <label>📂 Muat File Cadangan:</label>
@@ -292,7 +307,7 @@
         <button class="modal-close" onclick="document.getElementById('modalInvite').classList.add('hidden')">&times;</button>
       </div>
       <div class="modal-body">
-        <p>Kamar kebunmu sudah aktif! Berikan kode ini atau kirim link ke pacar kamu:</p>
+        <p>Kamar kebun sudah aktif! Berikan kode ini atau kirimkan link ke pacar kamu:</p>
         <div class="room-code-display" id="displayRoomCode">XXXXX</div>
         <input type="text" id="shareableLinkInput" readonly class="share-link-input">
         <button class="btn btn-primary" onclick="copyShareableLink()">
@@ -311,7 +326,6 @@
   <script src="js/game.js"></script>
 
   <script>
-    // Global App Initializer & UI Handlers
     let selectedGender = 'boy';
     let game = null;
 
@@ -324,13 +338,12 @@
       if (nameInput.value === 'Aurel' && role === 'boy') nameInput.value = 'Zahy';
     }
 
-    // Auto-detect URL parameter ?room=XXXXX for instant join!
     window.addEventListener('DOMContentLoaded', () => {
       const urlParams = new URLSearchParams(window.location.search);
       const roomParam = urlParams.get('room');
       if (roomParam) {
         document.getElementById('inputRoomCode').value = roomParam;
-        selectRole('girl'); // Partner usually joins via link!
+        selectRole('girl');
       }
     });
 
@@ -345,19 +358,18 @@
       game.player.name = playerName;
       game.player.role = selectedGender;
 
-      // Set partner defaults
       game.partner.role = selectedGender === 'boy' ? 'girl' : 'boy';
       game.partner.name = selectedGender === 'boy' ? 'Aurel' : 'Zahy';
 
       document.getElementById('hudPlayerName').textContent = game.player.name;
       document.getElementById('hudPartnerName').textContent = game.partner.name;
 
-      // Init Web Audio on first user interaction
       window.soundSystem.init();
 
       game.loadAssets(() => {
         game.init();
         game.updateHUD();
+        updateBotUI();
       });
     }
 
@@ -376,20 +388,20 @@
     function startJoinGame() {
       const code = document.getElementById('inputRoomCode').value.trim();
       if (!code) {
-        alert('Silakan masukkan Kode Kamar yang diberikan pacar kamu!');
+        alert('Silakan masukkan Kode Kamar dari pacarmu!');
         return;
       }
       launchGame();
       game.network.joinRoom(code, () => {
         game.showNotification('Berhasil terhubung ke kebun pasangan! Selamat mabar! 💖');
       }, (err) => {
-        alert('Gagal terhubung ke kamar tersebut. Pastikan kodenya benar dan Host sedang membuka web!');
+        alert('Gagal terhubung. Pastikan kodenya benar dan Host sedang membuka web!');
       });
     }
 
     function startSoloGame() {
       launchGame();
-      game.showNotification('Mode Solo aktif! Helper bot Boni & Slimey siap membantumu! 🌾🤖');
+      game.showNotification('Mode Santai aktif! Nikmati berkebun dan dekorasi rumah! 🌾');
     }
 
     function copyShareableLink() {
@@ -411,15 +423,26 @@
       }
     }
 
-    function updateBotSettings(botId, role) {
-      if (game && game.botManager) {
-        const bot = game.botManager.bots.find(b => b.id === botId);
-        if (bot) {
-          bot.role = role;
-          bot.enabled = (role !== 'idle');
-          game.showNotification(`Tugas ${bot.name} diubah!`);
-        }
+    function hireBotAction(botId, price) {
+      if (game.farm.hireBot(botId, price)) {
+        game.showNotification(`Berhasil menyewa ${botId.toUpperCase()}! Mulai bekerja di kebun~ 🤖✨`);
+        updateBotUI();
+        game.updateHUD();
+      } else {
+        alert('Koin cinta kamu belum cukup!');
       }
+    }
+
+    function updateBotUI() {
+      if (!game) return;
+      ['slime', 'boni'].forEach(id => {
+        const el = document.getElementById(`botStatus_${id}`);
+        if (el) {
+          if (game.farm.unlockedBots[id]) {
+            el.innerHTML = '<span style="color:#2ed573; font-weight:700;">✅ Sedang Aktif Bekerja</span>';
+          }
+        }
+      });
     }
 
     function handleImportFile(event) {
@@ -431,9 +454,9 @@
         if (ok) {
           game.updateHUD();
           document.getElementById('modalSave').classList.add('hidden');
-          game.showNotification('Data kebun berhasil dipulihkan dari file! 🌾✨');
+          game.showNotification('Data kebun berhasil dipulihkan! 🌾✨');
         } else {
-          alert('File cadangan tidak valid atau rusak!');
+          alert('File cadangan tidak valid!');
         }
       };
       reader.readAsText(file);
@@ -441,4 +464,3 @@
   </script>
 </body>
 </html>
-
