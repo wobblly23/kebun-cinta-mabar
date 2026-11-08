@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Kebun Cinta Kita - Game Mabar P2P</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- PeerJS CDN for WebRTC Peer-to-Peer Zero-Backend Multiplayer -->
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+
+  <!-- ================= LOBBY / SETUP SCREEN ================= -->
+  <div id="lobbyScreen" class="overlay-screen">
+    <div class="lobby-card">
+      <div class="heart-banner">🌾 Kebun Cinta Kita 💖</div>
+      <p class="lobby-sub">Game Mabar Santai Berdua bersama Pacar Tercinta</p>
+
+      <!-- Role & Character Selection -->
+      <div class="char-select-container">
+        <div class="char-box active" id="selectBoy" onclick="selectRole('boy')">
+          <img src="assets/characters/portrait_boy.png" alt="Cowok" class="portrait-preview">
+          <div class="char-label">👦 Karakter Cowok</div>
+        </div>
+        <div class="char-box" id="selectGirl" onclick="selectRole('girl')">
+          <img src="assets/characters/portrait_girl.png" alt="Cewek" class="portrait-preview">
+          <div class="char-label">👧 Karakter Cewek</div>
+        </div>
+      </div>
+
+      <!-- Player Name Input -->
+      <div class="form-group">
+        <label for="inputPlayerName">Nama Panggilan Kamu:</label>
+        <input type="text" id="inputPlayerName" value="Zahy" maxlength="15" placeholder="Masukkan namamu...">
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons-group">
+        <button class="btn btn-primary" id="btnHostGame" onclick="startHostGame()">
+          🏡 Buat Kebun Baru (Host)
+        </button>
+
+        <div class="join-divider"><span>atau gabung kebun pasangan</span></div>
+
+        <div class="join-form">
+          <input type="text" id="inputRoomCode" placeholder="Masukkan Kode Kamar..." maxlength="10">
+          <button class="btn btn-secondary" id="btnJoinGame" onclick="startJoinGame()">
+            💌 Gabung (Join)
+          </button>
+        </div>
+
+        <button class="btn btn-outline" onclick="startSoloGame()">
+          🎮 Main Sendiri / Uji Coba (Solo)
+        </button>
+      </div>
+
+      <div class="lobby-footer">
+        100% P2P WebRTC Statis • Tanpa Server / Kartu Kredit • Siap Hosting Netlify & GitHub Pages!
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= IN-GAME CANVAS ================= -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- ================= TOP HUD ================= -->
+  <div id="gameHUD" class="hud-container hidden">
+    <!-- Top Left: Profiles -->
+    <div class="hud-top-left">
+      <!-- Local Player Card -->
+      <div class="player-card">
+        <img id="localPortrait" src="assets/characters/portrait_boy.png" class="hud-avatar" alt="Avatar">
+        <div class="player-meta">
+          <span class="player-title" id="hudPlayerName">Zahy</span>
+          <span class="player-status" id="netBadge">⚪ Solo</span>
+        </div>
+      </div>
+
+      <!-- Partner Card -->
+      <div class="player-card partner-card" id="partnerCard">
+        <img id="partnerPortrait" src="assets/characters/portrait_girl.png" class="hud-avatar" alt="Partner">
+        <div class="player-meta">
+          <span class="player-title" id="hudPartnerName">Aurel</span>
+          <span class="player-status" id="partnerStatusText">Pacar Tercinta ❤️</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top Center: Love Meter & Time -->
+    <div class="hud-top-center">
+      <div class="love-pill">
+        <span class="love-val" id="hudLove">0 ❤️</span>
+        <span class="love-title" id="hudLoveTitle">Pasangan Pemula 🌱</span>
+      </div>
+      <div class="time-pill" id="hudTime">
+        Hari 1 - 08:00 (Pagi Cerah ☀️)
+      </div>
+    </div>
+
+    <!-- Top Right: Coins & Action Tools -->
+    <div class="hud-top-right">
+      <div class="coin-pill">
+        <span>🪙</span>
+        <strong id="hudCoins">150</strong>
+      </div>
+      <div class="icon-btn-row">
+        <button class="icon-btn" id="btnToggleSound" title="Suara">🔊</button>
+        <button class="icon-btn" id="btnToggleMusic" title="Musik BGM">🎵</button>
+        <button class="icon-btn" id="btnOpenChest" title="Peti Bersama">📦</button>
+        <button class="icon-btn" id="btnOpenBots" title="Pekerja Bot">🤖</button>
+        <button class="icon-btn" id="btnOpenSave" title="Cadangkan Kebun">💾</button>
+        <button class="icon-btn camera-btn" id="btnTakePic" title="Foto Berdua">📷</button>
+      </div>
+    </div>
+
+    <!-- Quick Emote Floating Bar -->
+    <div class="emote-bar">
+      <button class="emote-btn" onclick="game.showEmote('❤️')">❤️</button>
+      <button class="emote-btn" onclick="game.triggerCoupleKiss(false)">😘</button>
+      <button class="emote-btn" onclick="game.triggerCoupleHug(false)">🤗</button>
+      <button class="emote-btn" onclick="game.showEmote('🌸')">🌸</button>
+      <button class="emote-btn" onclick="game.showEmote('☕')">☕</button>
+      <button class="emote-btn" onclick="game.showEmote('🎉')">🎉</button>
+    </div>
+
+    <!-- Bottom Center: Hotbar -->
+    <div class="hotbar-container">
+      <div class="hotbar-slot active" data-tool="hoe" onclick="game.selectTool('hoe')">
+        <span class="key-hint">1</span>
+        <span class="slot-icon">🌾</span>
+        <span class="slot-name">Cangkul</span>
+      </div>
+      <div class="hotbar-slot" data-tool="water" onclick="game.selectTool('water')">
+        <span class="key-hint">2</span>
+        <span class="slot-icon">💧</span>
+        <span class="slot-name">Penyiram</span>
+      </div>
+      <div class="hotbar-slot" data-tool="seed_carrot" onclick="game.selectTool('seed_carrot')">
+        <span class="key-hint">3</span>
+        <span class="slot-icon">🥕</span>
+        <span class="slot-name">Wortel</span>
+      </div>
+      <div class="hotbar-slot" data-tool="seed_strawberry" onclick="game.selectTool('seed_strawberry')">
+        <span class="key-hint">4</span>
+        <span class="slot-icon">🍓</span>
+        <span class="slot-name">Stroberi</span>
+      </div>
+      <div class="hotbar-slot" data-tool="seed_tomato" onclick="game.selectTool('seed_tomato')">
+        <span class="key-hint">5</span>
+        <span class="slot-icon">🍅</span>
+        <span class="slot-name">Tomat</span>
+      </div>
+      <div class="hotbar-slot" data-tool="harvest" onclick="game.selectTool('harvest')">
+        <span class="key-hint">6</span>
+        <span class="slot-icon">🧺</span>
+        <span class="slot-name">Panen</span>
+      </div>
+      <div class="hotbar-slot" data-tool="flower" onclick="game.selectTool('flower')">
+        <span class="key-hint">7</span>
+        <span class="slot-icon">💖</span>
+        <span class="slot-name">Kasih Bunga</span>
+      </div>
+    </div>
+
+    <!-- Floating Chat Box -->
+    <div class="chat-widget" id="chatWidget">
+      <div class="chat-logs" id="chatLogs">
+        <div class="chat-bubble system">Selamat datang di Kebun Cinta Kita! 🌾💖</div>
+      </div>
+      <form class="chat-input-bar" id="chatForm">
+        <input type="text" id="chatInput" placeholder="Ketik pesan mesra... (Tekan Enter)">
+        <button type="submit" class="chat-send-btn">Kirim</button>
+      </form>
+    </div>
+
+    <!-- Mobile Virtual Controls -->
+    <div class="mobile-controls" id="mobileControls">
+      <!-- Joystick -->
+      <div class="joystick-base" id="joystickBase">
+        <div class="joystick-stick" id="joystickStick"></div>
+      </div>
+      <!-- Action Buttons -->
+      <div class="touch-action-pad">
+        <button class="touch-btn btn-tool-cycle" id="btnToolCycle">🔄 Alat</button>
+        <button class="touch-btn btn-emote-touch" id="btnEmote">❤️ Emote</button>
+        <button class="touch-btn btn-interact" id="btnInteract">🖐️ Ambil/Elus [E]</button>
+        <button class="touch-btn btn-action-main" id="btnAction">✨ Aksi [Spasi]</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODALS ================= -->
+
+  <!-- Modal: Peti Bersama (Shared Chest) -->
+  <div id="modalChest" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>📦 Peti Kebun Bersama</h3>
+        <button class="modal-close" onclick="document.getElementById('modalChest').classList.add('hidden')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <h4>Bibit Tanaman (Klik Beli untuk tambah stok):</h4>
+        <div class="chest-grid" id="chestSeedsList"></div>
+        <h4 style="margin-top: 15px;">Hasil Panen & Hewan:</h4>
+        <div class="chest-grid" id="chestProduceList"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="game.farm.sellAllProduce(); game.openChestModal(); game.updateHUD();">
+          🪙 Jual Semua Hasil Panen ke Kotak Jual
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Pekerja Bot (Bots Manager) -->
+  <div id="modalBots" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>🤖 Pengaturan Pekerja Kebun (Bots)</h3>
+        <button class="modal-close" onclick="document.getElementById('modalBots').classList.add('hidden')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Bot akan membantumu dan pasangan merawat kebun secara otomatis!</p>
+
+        <!-- Bot 1: Boni -->
+        <div class="bot-card">
+          <img src="assets/characters/portrait_boy.png" class="bot-avatar" style="filter: contrast(1.5) grayscale(0.8);" alt="Boni">
+          <div class="bot-info">
+            <strong>Boni Si Kerangka Rajin 💀</strong>
+            <p>Spesialis memanen sayur matang & menyimpannya ke peti bersama.</p>
+            <div class="bot-toggle-row">
+              <label>Status: </label>
+              <select onchange="updateBotSettings('boni', this.value)">
+                <option value="harvest" selected>🌾 Bantu Panen Tanaman</option>
+                <option value="idle">💤 Istirahat / Santai</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bot 2: Slimey -->
+        <div class="bot-card">
+          <div class="bot-avatar-emoji">🟢</div>
+          <div class="bot-info">
+            <strong>Slimey Si Slime Air 💦</strong>
+            <p>Spesialis menyiram tanah kering agar tanaman tumbuh 2.5x lebih cepat.</p>
+            <div class="bot-toggle-row">
+              <label>Status: </label>
+              <select onchange="updateBotSettings('slime', this.value)">
+                <option value="water" selected>💧 Bantu Siram Tanah Kering</option>
+                <option value="idle">💤 Istirahat / Santai</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Simpan & Cadangkan (Save & Export/Import) -->
+  <div id="modalSave" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>💾 Simpan & Cadangkan Kebun</h3>
+        <button class="modal-close" onclick="document.getElementById('modalSave').classList.add('hidden')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Game ini <strong>otomatis tersimpan</strong> di browser kamu setiap saat!</p>
+        <p>Kamu juga bisa mengunduh file cadangan (.json) agar progres kebunmu aman selamanya dan bisa dipindahkan ke HP / Laptop lain.</p>
+        
+        <div class="save-actions">
+          <button class="btn btn-primary" onclick="game.farm.autoSave(); game.showNotification('Kebun berhasil disimpan di peramban! 💾✨');">
+            ⚡ Simpan Cepat Sekarang
+          </button>
+          <button class="btn btn-secondary" onclick="game.farm.exportSaveFile()">
+            📥 Unduh File Cadangan Kebun (.json)
+          </button>
+          <div class="import-section">
+            <label>📂 Muat File Cadangan:</label>
+            <input type="file" id="importFileInput" accept=".json" onchange="handleImportFile(event)">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Room Share Link (Invite Partner) -->
+  <div id="modalInvite" class="modal-overlay hidden">
+    <div class="modal-content text-center">
+      <div class="modal-header">
+        <h3>💌 Undang Pacar Mabar</h3>
+        <button class="modal-close" onclick="document.getElementById('modalInvite').classList.add('hidden')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Kamar kebunmu sudah aktif! Berikan kode ini atau kirim link ke pacar kamu:</p>
+        <div class="room-code-display" id="displayRoomCode">XXXXX</div>
+        <input type="text" id="shareableLinkInput" readonly class="share-link-input">
+        <button class="btn btn-primary" onclick="copyShareableLink()">
+          📋 Salin Link Undangan WhatsApp
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/audio.js"></script>
+  <script src="js/farm.js"></script>
+  <script src="js/bots.js"></script>
+  <script src="js/animals.js"></script>
+  <script src="js/network.js"></script>
+  <script src="js/game.js"></script>
+
+  <script>
+    // Global App Initializer & UI Handlers
+    let selectedGender = 'boy';
+    let game = null;
+
+    function selectRole(role) {
+      selectedGender = role;
+      document.getElementById('selectBoy').classList.toggle('active', role === 'boy');
+      document.getElementById('selectGirl').classList.toggle('active', role === 'girl');
+      const nameInput = document.getElementById('inputPlayerName');
+      if (nameInput.value === 'Zahy' && role === 'girl') nameInput.value = 'Aurel';
+      if (nameInput.value === 'Aurel' && role === 'boy') nameInput.value = 'Zahy';
+    }
+
+    // Auto-detect URL parameter ?room=XXXXX for instant join!
+    window.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const roomParam = urlParams.get('room');
+      if (roomParam) {
+        document.getElementById('inputRoomCode').value = roomParam;
+        selectRole('girl'); // Partner usually joins via link!
+      }
+    });
+
+    function launchGame() {
+      document.getElementById('lobbyScreen').classList.add('hidden');
+      document.getElementById('gameHUD').classList.remove('hidden');
+
+      const playerName = document.getElementById('inputPlayerName').value.trim() || (selectedGender === 'boy' ? 'Zahy' : 'Aurel');
+      
+      game = new Game();
+      window.game = game;
+      game.player.name = playerName;
+      game.player.role = selectedGender;
+
+      // Set partner defaults
+      game.partner.role = selectedGender === 'boy' ? 'girl' : 'boy';
+      game.partner.name = selectedGender === 'boy' ? 'Aurel' : 'Zahy';
+
+      document.getElementById('hudPlayerName').textContent = game.player.name;
+      document.getElementById('hudPartnerName').textContent = game.partner.name;
+
+      // Init Web Audio on first user interaction
+      window.soundSystem.init();
+
+      game.loadAssets(() => {
+        game.init();
+        game.updateHUD();
+      });
+    }
+
+    function startHostGame() {
+      launchGame();
+      game.network.hostRoom('', (roomCode) => {
+        document.getElementById('displayRoomCode').textContent = roomCode;
+        const currentUrl = window.location.origin + window.location.pathname;
+        const fullLink = `${currentUrl}?room=${roomCode}`;
+        document.getElementById('shareableLinkInput').value = fullLink;
+        document.getElementById('modalInvite').classList.remove('hidden');
+        game.updateHUD();
+      });
+    }
+
+    function startJoinGame() {
+      const code = document.getElementById('inputRoomCode').value.trim();
+      if (!code) {
+        alert('Silakan masukkan Kode Kamar yang diberikan pacar kamu!');
+        return;
+      }
+      launchGame();
+      game.network.joinRoom(code, () => {
+        game.showNotification('Berhasil terhubung ke kebun pasangan! Selamat mabar! 💖');
+      }, (err) => {
+        alert('Gagal terhubung ke kamar tersebut. Pastikan kodenya benar dan Host sedang membuka web!');
+      });
+    }
+
+    function startSoloGame() {
+      launchGame();
+      game.showNotification('Mode Solo aktif! Helper bot Boni & Slimey siap membantumu! 🌾🤖');
+    }
+
+    function copyShareableLink() {
+      const input = document.getElementById('shareableLinkInput');
+      input.select();
+      input.setSelectionRange(0, 99999);
+      navigator.clipboard.writeText(input.value).then(() => {
+        alert('Link berhasil disalin! Kirim ke pacarmu via WhatsApp/Discord untuk langsung main bareng!');
+      });
+    }
+
+    function updateBotSettings(botId, role) {
+      if (game && game.botManager) {
+        const bot = game.botManager.bots.find(b => b.id === botId);
+        if (bot) {
+          bot.role = role;
+          bot.enabled = (role !== 'idle');
+          game.showNotification(`Tugas ${bot.name} diubah!`);
+        }
+      }
+    }
+
+    function handleImportFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const ok = game.farm.importSaveFile(e.target.result);
+        if (ok) {
+          game.updateHUD();
+          document.getElementById('modalSave').classList.add('hidden');
+          game.showNotification('Data kebun berhasil dipulihkan dari file! 🌾✨');
+        } else {
+          alert('File cadangan tidak valid atau rusak!');
+        }
+      };
+      reader.readAsText(file);
+    }
+  </script>
+</body>
+</html>
