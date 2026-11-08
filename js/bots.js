@@ -1,5 +1,4 @@
-// js/bots.js - Helper Farm Bots (Boni, Slimey, Chicky)
-// Bots only activate once HIRED from Mbah Dukun after players save up coins!
+// js/bots.js - Active Helper Farm Bots with Smooth Walking and Autonomous AI
 
 class HelperBot {
   constructor(id, name, type, x, y, farm) {
@@ -10,11 +9,11 @@ class HelperBot {
 
     this.x = x * farm.tileSize;
     this.y = y * farm.tileSize;
-    this.speed = type === 'slime' ? 32 : (type === 'chicky' ? 40 : 36);
+    this.speed = type === 'slime' ? 34 : (type === 'chicky' ? 42 : 38);
 
     this.role = type === 'boni' ? 'harvest' : (type === 'slime' ? 'water' : 'feed');
     this.state = 'idle';
-    this.timer = 0;
+    this.timer = 1.0;
     this.targetTile = null;
 
     this.dir = 'down';
@@ -44,12 +43,14 @@ class HelperBot {
       if (this.bubbleTimer <= 0) this.bubbleText = '';
     }
 
+    // Always advance animation frames smoothly
     this.animTimer += delta;
-    if (this.animTimer >= 0.15) {
+    if (this.animTimer >= 0.12) {
       this.animTimer = 0;
       this.frame = (this.frame + 1) % 6;
     }
 
+    // AI Routine
     if (this.state === 'idle') {
       this.isMoving = false;
       this.timer -= delta;
@@ -72,8 +73,8 @@ class HelperBot {
     if (this.role === 'harvest') {
       let bestTile = null;
       let bestDist = Infinity;
-      const ctx = Math.floor(this.x / this.farm.tileSize);
-      const cty = Math.floor(this.y / this.farm.tileSize);
+      const ctx = Math.floor((this.x + 8) / this.farm.tileSize);
+      const cty = Math.floor((this.y + 8) / this.farm.tileSize);
 
       for (let y = 0; y < this.farm.rows; y++) {
         for (let x = 0; x < this.farm.cols; x++) {
@@ -91,16 +92,16 @@ class HelperBot {
       if (bestTile) {
         this.targetTile = bestTile;
         this.state = 'moving';
-        this.say('Ada panen matang! OTW~ 🧺', 2);
+        this.say('Ada panen siap! Menuju ke sana~ 🧺', 2.5);
       } else {
-        this.timer = 3 + Math.random() * 2;
-        if (Math.random() > 0.5) this.wander();
+        this.timer = 1.5 + Math.random() * 2;
+        this.wander();
       }
     } else if (this.role === 'water') {
       let bestTile = null;
       let bestDist = Infinity;
-      const ctx = Math.floor(this.x / this.farm.tileSize);
-      const cty = Math.floor(this.y / this.farm.tileSize);
+      const ctx = Math.floor((this.x + 8) / this.farm.tileSize);
+      const cty = Math.floor((this.y + 8) / this.farm.tileSize);
 
       for (let y = 0; y < this.farm.rows; y++) {
         for (let x = 0; x < this.farm.cols; x++) {
@@ -118,13 +119,12 @@ class HelperBot {
       if (bestTile) {
         this.targetTile = bestTile;
         this.state = 'moving';
-        this.say('Menyiram tanah kering~ 💦', 2);
+        this.say('Menyiram tanah kering~ 💦', 2.5);
       } else {
-        this.timer = 3 + Math.random() * 2;
-        if (Math.random() > 0.5) this.wander();
+        this.timer = 1.5 + Math.random() * 2;
+        this.wander();
       }
     } else {
-      // Chicky / pet helper bot wanders near pasture
       this.timer = 2;
       this.wander();
     }
@@ -133,8 +133,10 @@ class HelperBot {
   wander() {
     const ctx = Math.floor(this.x / this.farm.tileSize);
     const cty = Math.floor(this.y / this.farm.tileSize);
-    const nx = Math.max(14, Math.min(32, ctx + Math.floor(Math.random() * 7) - 3));
-    const ny = Math.max(15, Math.min(23, cty + Math.floor(Math.random() * 7) - 3));
+    const dx = Math.floor(Math.random() * 9) - 4;
+    const dy = Math.floor(Math.random() * 9) - 4;
+    const nx = Math.max(13, Math.min(33, ctx + dx));
+    const ny = Math.max(9, Math.min(23, cty + dy));
 
     if (!this.farm.isCollidable(nx, ny, 'farm')) {
       this.targetTile = { x: nx, y: ny };
@@ -155,7 +157,7 @@ class HelperBot {
     const dy = tpy - (this.y + 16);
     const dist = Math.hypot(dx, dy);
 
-    if (dist < 4) {
+    if (dist < 5) {
       this.state = 'working';
       this.timer = 1.0;
       return;
@@ -189,7 +191,7 @@ class HelperBot {
     } else if (this.role === 'water') {
       const ok = this.farm.waterSoil(x, y);
       if (ok) {
-        this.say('Tanah sudah segar berair! 💦', 2.5);
+        this.say('Croot! Segar kembali~ 💦', 2.5);
         if (window.soundSystem) window.soundSystem.playWater();
       }
     }
@@ -204,9 +206,9 @@ class BotManager {
   constructor(farm) {
     this.farm = farm;
     this.bots = [
-      new HelperBot('slime', 'Slimey Si Air 💦', 'slime', 20, 18, farm),
-      new HelperBot('boni', 'Boni Si Panen 💀', 'boni', 18, 18, farm),
-      new HelperBot('chicky', 'Chicky Si Asisten 🐥', 'chicky', 15, 18, farm)
+      new HelperBot('slime', 'Slimey Si Air 💦', 'slime', 20, 13, farm),
+      new HelperBot('boni', 'Boni Si Panen 💀', 'boni', 18, 13, farm),
+      new HelperBot('chicky', 'Chicky Si Asisten 🐥', 'chicky', 15, 13, farm)
     ];
   }
 

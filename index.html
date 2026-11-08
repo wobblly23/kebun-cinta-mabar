@@ -98,7 +98,7 @@
     <div class="hud-top-right">
       <div class="coin-pill">
         <span>🪙</span>
-        <strong id="hudCoins">60</strong>
+        <strong id="hudCoins">70</strong>
       </div>
       <div class="icon-btn-row">
         <button class="icon-btn" id="btnToggleSound" title="Suara">🔊</button>
@@ -142,15 +142,15 @@
         <span class="slot-icon">🍓</span>
         <span class="slot-name">Stroberi</span>
       </div>
-      <div class="hotbar-slot" data-tool="seed_tomato" onclick="game.selectTool('seed_tomato')">
-        <span class="key-hint">5</span>
-        <span class="slot-icon">🍅</span>
-        <span class="slot-name">Tomat</span>
-      </div>
       <div class="hotbar-slot" data-tool="fishing_rod" onclick="game.selectTool('fishing_rod')">
-        <span class="key-hint">6</span>
+        <span class="key-hint">5</span>
         <span class="slot-icon">🎣</span>
         <span class="slot-name">Pancing</span>
+      </div>
+      <div class="hotbar-slot" data-tool="sword_iron" onclick="game.selectTool('sword_iron')">
+        <span class="key-hint">6</span>
+        <span class="slot-icon">⚔️</span>
+        <span class="slot-name">Pedang</span>
       </div>
       <div class="hotbar-slot" data-tool="flower" onclick="game.selectTool('flower')">
         <span class="key-hint">7</span>
@@ -179,7 +179,7 @@
         <button class="touch-btn btn-tool-cycle" id="btnToolCycle">🔄 Ganti Alat</button>
         <button class="touch-btn btn-emote-touch" id="btnEmote">❤️ Emote</button>
         <button class="touch-btn btn-interact" id="btnInteract">🖐️ Aksi/Bicara [E]</button>
-        <button class="touch-btn btn-action-main" id="btnAction">✨ Gunakan Alat [Spasi]</button>
+        <button class="touch-btn btn-action-main" id="btnAction">✨ Gunakan/Serang [Spasi]</button>
       </div>
     </div>
   </div>
@@ -203,7 +203,7 @@
     </div>
   </div>
 
-  <!-- Modal: Toko Pembelian (Seeds, Furniture, Animals) -->
+  <!-- Modal: Toko Pembelian (Seeds, Furniture, Animals, Pets) -->
   <div id="modalStore" class="modal-overlay hidden">
     <div class="modal-content">
       <div class="modal-header">
@@ -216,7 +216,25 @@
     </div>
   </div>
 
-  <!-- Modal: Peti Bersama (Shared Chest) -->
+  <!-- Modal: Atur Perabotan Rumah MC (Custom Placement) -->
+  <div id="modalFurniturePlacement" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>🪑 Atur Perabotan Rumah MC</h3>
+        <button class="modal-close" onclick="document.getElementById('modalFurniturePlacement').classList.add('hidden')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Pilih perabotan yang ingin kamu pasang di lantai rumahmu. Rumahmu dimulai kosong agar kamu bisa bebas menata tata letak!</p>
+        <div id="ownedFurnitureList" style="display:flex; flex-direction:column; gap:8px;"></div>
+        <hr style="margin: 14px 0; border: none; border-top: 1px solid #dfe4ea;">
+        <button class="btn btn-secondary" onclick="game.furnitureEditMode=false; document.getElementById('modalFurniturePlacement').classList.add('hidden'); game.showNotification('Mode dekorasi selesai! 🏡');">
+          Selesai Menata Perabotan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Peti Bersama -->
   <div id="modalChest" class="modal-overlay hidden">
     <div class="modal-content">
       <div class="modal-header">
@@ -226,18 +244,18 @@
       <div class="modal-body">
         <h4>Bibit Tersimpan:</h4>
         <div class="chest-grid" id="chestSeedsList"></div>
-        <h4 style="margin-top: 15px;">Hasil Panen, Ikan & Peternakan:</h4>
+        <h4 style="margin-top: 15px;">Hasil Panen, Ikan, Monster & Peternakan:</h4>
         <div class="chest-grid" id="chestProduceList"></div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="game.sellProduce(); game.openChestModal();">
-          🪙 Jual Semua Hasil Panen ke Kotak Jual
+          🪙 Jual Semua Hasil Panen & Monster ke Kotak Jual
         </button>
       </div>
     </div>
   </div>
 
-  <!-- Modal: Pengaturan & Sewa Bot (Bots Manager) -->
+  <!-- Modal: Pengaturan & Sewa Bot -->
   <div id="modalBots" class="modal-overlay hidden">
     <div class="modal-content">
       <div class="modal-header">
@@ -245,26 +263,24 @@
         <button class="modal-close" onclick="document.getElementById('modalBots').classList.add('hidden')">&times;</button>
       </div>
       <div class="modal-body">
-        <p class="modal-desc">Kumpulkan koin cinta untuk menyewa pembantu kebun otomatis!</p>
+        <p class="modal-desc">Kumpulkan koin cinta untuk menyewa pembantu kebun otomatis yang rajin bergerak!</p>
 
-        <!-- Bot 1: Slimey -->
         <div class="bot-card">
           <div class="bot-avatar-emoji">🟢</div>
           <div class="bot-info">
             <strong>Slimey Si Slime Air 💦</strong>
-            <p>Menyiram semua tanah kering otomatis agar tanaman tumbuh 2.5x lebih cepat.</p>
+            <p>Berjalan menyiram semua tanah kering otomatis agar tanaman tumbuh 2.5x lebih cepat.</p>
             <div id="botStatus_slime">
               <button class="btn-buy" onclick="hireBotAction('slime', 100)">Sewa Slimey (100 🪙)</button>
             </div>
           </div>
         </div>
 
-        <!-- Bot 2: Boni -->
         <div class="bot-card">
           <div class="bot-avatar-emoji">💀</div>
           <div class="bot-info">
             <strong>Boni Si Panen Rajin 🧺</strong>
-            <p>Mencari tanaman matang dan memetiknya langsung ke dalam peti bersama.</p>
+            <p>Berjalan memetik sayur matang otomatis dan menyimpannya langsung ke dalam peti bersama.</p>
             <div id="botStatus_boni">
               <button class="btn-buy" onclick="hireBotAction('boni', 180)">Sewa Boni (180 🪙)</button>
             </div>
@@ -274,7 +290,7 @@
     </div>
   </div>
 
-  <!-- Modal: Simpan & Cadangkan (Save & Export/Import) -->
+  <!-- Modal: Simpan & Cadangkan -->
   <div id="modalSave" class="modal-overlay hidden">
     <div class="modal-content">
       <div class="modal-header">
@@ -299,7 +315,7 @@
     </div>
   </div>
 
-  <!-- Modal: Room Share Link (Invite Partner) -->
+  <!-- Modal: Room Share Link -->
   <div id="modalInvite" class="modal-overlay hidden">
     <div class="modal-content text-center">
       <div class="modal-header">
@@ -401,7 +417,7 @@
 
     function startSoloGame() {
       launchGame();
-      game.showNotification('Mode Santai aktif! Nikmati berkebun dan dekorasi rumah! 🌾');
+      game.showNotification('Mode Santai aktif! Nikmati berkebun, bertualang, dan dekorasi rumah! 🌾');
     }
 
     function copyShareableLink() {
@@ -425,7 +441,7 @@
 
     function hireBotAction(botId, price) {
       if (game.farm.hireBot(botId, price)) {
-        game.showNotification(`Berhasil menyewa ${botId.toUpperCase()}! Mulai bekerja di kebun~ 🤖✨`);
+        game.showNotification(`Berhasil menyewa ${botId.toUpperCase()}! Mulai bekerja aktif di kebun~ 🤖✨`);
         updateBotUI();
         game.updateHUD();
       } else {
