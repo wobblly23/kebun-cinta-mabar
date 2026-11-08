@@ -64,13 +64,23 @@
 
   <!-- ================= TOP HUD ================= -->
   <div id="gameHUD" class="hud-container hidden">
-    <!-- Top Left: Profiles -->
+    <!-- Top Left: Profiles & HP Bar -->
     <div class="hud-top-left">
       <div class="player-card">
         <img id="localPortrait" src="assets/characters/portrait_boy.png" class="hud-avatar" alt="Avatar">
         <div class="player-meta">
-          <span class="player-title" id="hudPlayerName">Zahy</span>
-          <span class="player-status" id="netBadge">⚪ Solo</span>
+          <div class="player-title-row">
+            <span class="player-title" id="hudPlayerName">Zahy</span>
+            <span class="player-status" id="netBadge">⚪ Solo</span>
+          </div>
+          <!-- Player Health Bar -->
+          <div class="hp-bar-container" title="Nyawa Karakter">
+            <span class="hp-heart-icon">❤️</span>
+            <div class="hp-track">
+              <div id="hudHpFill" class="hp-fill" style="width: 100%;"></div>
+            </div>
+            <span id="hudHpText" class="hp-text">100/100</span>
+          </div>
         </div>
       </div>
 
@@ -120,52 +130,66 @@
       <button class="emote-btn" onclick="game.showEmote('🎉')">🎉</button>
     </div>
 
-    <!-- Bottom Center: Hotbar -->
+    <!-- Bottom Center: Hotbar (All Core Activities: Farm, Wood, Mine, Fish, Fight) -->
     <div class="hotbar-container">
-      <div class="hotbar-slot active" data-tool="hoe" onclick="game.selectTool('hoe')">
+      <div class="hotbar-slot active" data-tool="hoe" onclick="game.selectTool('hoe')" title="Cangkul Tanah [1]">
         <span class="key-hint">1</span>
         <span class="slot-icon">🌾</span>
         <span class="slot-name">Cangkul</span>
       </div>
-      <div class="hotbar-slot" data-tool="water" onclick="game.selectTool('water')">
+      <div class="hotbar-slot" data-tool="water" onclick="game.selectTool('water')" title="Siram Air [2]">
         <span class="key-hint">2</span>
         <span class="slot-icon">💧</span>
         <span class="slot-name">Penyiram</span>
       </div>
-      <div class="hotbar-slot" data-tool="seed_carrot" onclick="game.selectTool('seed_carrot')">
+      <div class="hotbar-slot" data-tool="axe" onclick="game.selectTool('axe')" title="Tebas Kayu & Pohon [3]">
         <span class="key-hint">3</span>
-        <span class="slot-icon">🥕</span>
-        <span class="slot-name">Wortel</span>
+        <span class="slot-icon">🪓</span>
+        <span class="slot-name">Kapak</span>
       </div>
-      <div class="hotbar-slot" data-tool="seed_strawberry" onclick="game.selectTool('seed_strawberry')">
+      <div class="hotbar-slot" data-tool="pickaxe" onclick="game.selectTool('pickaxe')" title="Tambang Batu & Bijih [4]">
         <span class="key-hint">4</span>
-        <span class="slot-icon">🍓</span>
-        <span class="slot-name">Stroberi</span>
+        <span class="slot-icon">⛏️</span>
+        <span class="slot-name">Beliung</span>
       </div>
-      <div class="hotbar-slot" data-tool="fishing_rod" onclick="game.selectTool('fishing_rod')">
+      <div class="hotbar-slot" data-tool="fishing_rod" onclick="game.selectTool('fishing_rod')" title="Pancing Ikan di Danau [5]">
         <span class="key-hint">5</span>
         <span class="slot-icon">🎣</span>
         <span class="slot-name">Pancing</span>
       </div>
-      <div class="hotbar-slot" data-tool="sword_iron" onclick="game.selectTool('sword_iron')">
+      <div class="hotbar-slot" data-tool="sword_iron" onclick="game.selectTool('sword_iron')" title="Pedang Serang Monster [6]">
         <span class="key-hint">6</span>
         <span class="slot-icon">⚔️</span>
         <span class="slot-name">Pedang</span>
       </div>
-      <div class="hotbar-slot" data-tool="flower" onclick="game.selectTool('flower')">
+      <div class="hotbar-slot" data-tool="seed_carrot" onclick="game.selectTool('seed_carrot')" title="Tanam Bibit Wortel [7]">
         <span class="key-hint">7</span>
+        <span class="slot-icon">🥕</span>
+        <span class="slot-name">Wortel</span>
+      </div>
+      <div class="hotbar-slot" data-tool="seed_strawberry" onclick="game.selectTool('seed_strawberry')" title="Tanam Bibit Stroberi [8]">
+        <span class="key-hint">8</span>
+        <span class="slot-icon">🍓</span>
+        <span class="slot-name">Stroberi</span>
+      </div>
+      <div class="hotbar-slot" data-tool="flower" onclick="game.selectTool('flower')" title="Beri Hadiah Bunga Cinta [9]">
+        <span class="key-hint">9</span>
         <span class="slot-icon">💖</span>
         <span class="slot-name">Bunga</span>
       </div>
     </div>
 
-    <!-- Floating Chat Box -->
+    <!-- Floating Chat Box (With Toggle Minimize/Expand) -->
     <div class="chat-widget" id="chatWidget">
+      <div class="chat-header">
+        <span class="chat-title">💬 Obrolan Mesra</span>
+        <button type="button" class="chat-toggle-btn" id="btnToggleChat" onclick="game.toggleChatMinimize()" title="Perkecil/Buka Chat">➖</button>
+      </div>
       <div class="chat-logs" id="chatLogs">
         <div class="chat-bubble system">Selamat datang di Kebun Cinta Kita! 🌾💖</div>
       </div>
       <form class="chat-input-bar" id="chatForm">
-        <input type="text" id="chatInput" placeholder="Ketik pesan mesra... (Tekan Enter)">
+        <input type="text" id="chatInput" placeholder="Ketik pesan mesra... (Enter)">
         <button type="submit" class="chat-send-btn">Kirim</button>
       </form>
     </div>

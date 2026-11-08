@@ -290,6 +290,13 @@ body, html {
 .player-meta {
   display: flex;
   flex-direction: column;
+  gap: 2px;
+}
+
+.player-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .player-title {
@@ -299,8 +306,42 @@ body, html {
 }
 
 .player-status {
-  font-size: 11px;
+  font-size: 10px;
   color: #747d8c;
+}
+
+/* Player Health Bar */
+.hp-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.hp-heart-icon {
+  font-size: 11px;
+}
+
+.hp-track {
+  width: 70px;
+  height: 8px;
+  background: #dfe4ea;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #ced6e0;
+}
+
+.hp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff4757, #ff6b81);
+  border-radius: 4px;
+  transition: width 0.25s ease;
+}
+
+.hp-text {
+  font-size: 10px;
+  font-weight: 700;
+  color: #d63031;
 }
 
 /* Top Center: Love & Time */
@@ -438,17 +479,20 @@ body, html {
 /* Bottom Center: Hotbar */
 .hotbar-container {
   position: absolute;
-  bottom: 16px;
+  bottom: 14px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.92);
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(8px);
-  padding: 6px 10px;
+  padding: 5px 8px;
   border-radius: 18px;
   border: 3px solid #74b9ff;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  max-width: 95vw;
+  overflow-x: auto;
+  z-index: 105;
 }
 
 .hotbar-slot {
@@ -456,14 +500,15 @@ body, html {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 52px;
-  height: 56px;
+  width: 48px;
+  height: 52px;
   background: #f1f2f6;
   border: 2px solid #ced6e0;
   border-radius: 12px;
   cursor: pointer;
   position: relative;
   transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
 .hotbar-slot:hover {
@@ -488,37 +533,78 @@ body, html {
 }
 
 .slot-icon {
-  font-size: 20px;
+  font-size: 18px;
   margin-top: 2px;
 }
 
 .slot-name {
-  font-size: 9px;
+  font-size: 8.5px;
   font-weight: 600;
   color: #2f3542;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 /* Floating Chat Box */
 .chat-widget {
   position: absolute;
-  bottom: 84px;
+  bottom: 78px;
   left: 12px;
-  width: 280px;
-  background: rgba(255, 255, 255, 0.88);
+  width: 270px;
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(8px);
-  border-radius: 16px;
+  border-radius: 14px;
   border: 2px solid #ffeaa7;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+  z-index: 102;
+  transition: all 0.2s ease;
+}
+
+.chat-widget.minimized {
+  width: auto;
+  bottom: 78px;
+}
+
+.chat-widget.minimized .chat-logs,
+.chat-widget.minimized .chat-input-bar {
+  display: none !important;
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff0f3;
+  padding: 4px 10px;
+  border-bottom: 1px solid #ffd6dc;
+}
+
+.chat-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #ff4757;
+}
+
+.chat-toggle-btn {
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 4px;
+  color: #747d8c;
+  line-height: 1;
+}
+
+.chat-toggle-btn:hover {
+  color: #ff4757;
 }
 
 .chat-logs {
-  height: 90px;
+  height: 80px;
   overflow-y: auto;
-  padding: 8px 10px;
+  padding: 6px 8px;
   display: flex;
   flex-direction: column;
   gap: 4px;

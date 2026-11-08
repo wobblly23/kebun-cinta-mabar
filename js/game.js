@@ -1,94 +1,92 @@
-// js/game.js - Complete Multi-Location World, Real Pixel Art Furniture, Combat, and Pet System
+// js/game.js - Complete Romantic Farming, Mining, Woodcutting, Fishing, Combat & Housing Engine
 
 class Game {
   constructor() {
     this.canvas = document.getElementById('gameCanvas');
     this.ctx = this.canvas.getContext('2d');
-    this.ctx.imageSmoothingEnabled = false;
 
-    // Subsystems
     this.farm = new FarmManager(48, 32, 16);
     this.botManager = new BotManager(this.farm);
     this.animalManager = new AnimalManager(this.farm);
     this.network = new NetworkManager(this);
 
-    // Player Data
+    this.camera = { x: 0, y: 0, scale: 2.4 };
+
+    // Local Player State
     this.player = {
       name: 'Zahy',
       role: 'boy',
       x: 23 * 16,
-      y: 9 * 16,
-      speed: 75,
+      y: 10 * 16,
       dir: 'down',
+      speed: 84,
       isMoving: false,
-      animFrame: 0,
-      animTimer: 0,
-      currentAction: 'idle',
+      currentAction: 'idle', // 'idle' | 'action'
       actionTimer: 0,
+      slashTimer: 0,
+      animTimer: 0,
+      animFrame: 0,
       selectedTool: 'hoe',
       emote: null,
       emoteTimer: 0,
       isFishing: false,
       fishingTimer: 0,
-      fishingBite: false,
-      slashTimer: 0
+      fishingBite: false
     };
 
-    // Pet Companion State (Follower)
+    // Pet follower visual state
     this.pet = {
-      x: 22 * 16,
-      y: 9 * 16,
-      dir: 'down',
+      x: 23 * 16 - 20,
+      y: 10 * 16,
+      dir: 'right',
       anim: 0,
       isMoving: false
     };
 
-    // Partner Player (Mabar)
+    // Remote Partner State
     this.partner = {
+      active: false,
       name: 'Aurel',
       role: 'girl',
       x: 24 * 16,
-      y: 9 * 16,
+      y: 10 * 16,
       dir: 'down',
       isMoving: false,
-      animFrame: 0,
       currentAction: 'idle',
+      animFrame: 0,
       emote: null,
       emoteTimer: 0,
-      active: false,
       location: 'farm',
-      pet: null
+      isFishing: false
     };
 
-    this.camera = { x: 0, y: 0, scale: 3 };
+    this.assets = {};
     this.keys = {};
-    this.touchJoystick = { active: false, dx: 0, dy: 0 };
+    this.touchJoystick = { active: false, startX: 0, startY: 0, dx: 0, dy: 0 };
 
-    // Furniture placement mode in MC House
+    this.floatingTexts = [];
+    this.sparkles = [];
+    this.notifications = [];
+    this.activePrompt = null;
     this.furnitureEditMode = false;
     this.selectedFurnToPlace = null;
+    this.screenFlashRed = 0;
+    this.screenFlashGreen = 0;
+    this.chatMinimized = false;
 
-    // Fireflies & Combat Floating Numbers
+    // Kunang-kunang malam
     this.fireflies = [];
-    for (let i = 0; i < 24; i++) {
+    for (let i = 0; i < 30; i++) {
       this.fireflies.push({
-        x: Math.random() * (this.farm.cols * 16),
-        y: Math.random() * (this.farm.rows * 16),
-        vx: (Math.random() - 0.5) * 12,
-        vy: (Math.random() - 0.5) * 12,
-        alpha: Math.random(),
-        da: 0.02
+        x: Math.random() * 48 * 16,
+        y: Math.random() * 32 * 16,
+        vx: (Math.random() - 0.5) * 8,
+        vy: (Math.random() - 0.5) * 8,
+        phase: Math.random() * Math.PI * 2
       });
     }
 
-    this.activePrompt = null;
-    this.notifications = [];
-    this.sparkles = [];
-    this.floatingTexts = []; // [{ x, y, text, color, life }]
-
-    this.assets = {};
-    this.assetsLoaded = false;
-    this.lastTime = performance.now();
+    this.lastTime = 0;
   }
 
   loadAssets(callback) {
@@ -119,18 +117,36 @@ class Game {
       // Crops & Items
       plants: 'assets/crops/plants.png',
       items: 'assets/crops/items.png',
-      // Tiles
+      // Tiles & Buildings
       grass: 'assets/tiles/grass.png',
       farmland: 'assets/tiles/farmland.png',
       path: 'assets/tiles/path.png',
       water: 'assets/tiles/water.png',
       house: 'assets/tiles/house.png',
+      house_barn: 'assets/buildings/house_barn.png',
+      house_cottage: 'assets/buildings/house_cottage.png',
       tree: 'assets/tiles/tree.png',
       fences: 'assets/tiles/fences.png',
       bridge: 'assets/tiles/bridge.png',
+      bridge_fancy: 'assets/decor/bridge_fancy.png',
+      boat: 'assets/decor/boat.png',
       chest: 'assets/tiles/chest.png',
+      floor_wood: 'assets/tiles/floor_wood.png',
+      wall_wood: 'assets/tiles/wall_wood.png',
       interior_tiles: 'assets/tiles/interior_tiles.png',
       mystic_grass: 'assets/tiles/mystic_grass.png',
+      // Environment Decor & Resource Nodes
+      rock_node: 'assets/decor/rock_node.png',
+      log_wood: 'assets/decor/log_wood.png',
+      stump: 'assets/decor/stump.png',
+      well: 'assets/decor/well.png',
+      scarecrow: 'assets/decor/scarecrow.png',
+      hay_bale: 'assets/decor/hay_bale.png',
+      trough: 'assets/decor/trough.png',
+      water_lilies: 'assets/decor/water_lilies.png',
+      water_reeds: 'assets/decor/water_reeds.png',
+      water_rocks: 'assets/decor/water_rocks.png',
+      bush_flowers: 'assets/decor/bush_flowers.png',
       // Real Pixel Art Furniture
       bed_double: 'assets/furniture/bed_double.png',
       dining_table: 'assets/furniture/dining_table.png',
@@ -139,7 +155,8 @@ class Game {
       bookshelf: 'assets/furniture/bookshelf.png',
       cabinet: 'assets/furniture/cabinet.png',
       plant: 'assets/furniture/plant.png',
-      rug: 'assets/furniture/rug.png'
+      rug: 'assets/furniture/rug.png',
+      table_small: 'assets/furniture/table_small.png'
     };
 
     let loadedCount = 0;
@@ -154,7 +171,7 @@ class Game {
         if (loadedCount >= total && callback) callback();
       };
       img.onerror = () => {
-        console.warn('Gagal memuat:', src);
+        console.warn('Gagal memuat asset:', src);
         loadedCount++;
         if (loadedCount >= total && callback) callback();
       };
@@ -175,11 +192,7 @@ class Game {
     const resize = () => {
       this.canvas.width = window.innerWidth;
       this.canvas.height = window.innerHeight;
-      this.ctx.imageSmoothingEnabled = false;
-
-      if (window.innerWidth < 600) this.camera.scale = 2.4;
-      else if (window.innerWidth < 1200) this.camera.scale = 3.0;
-      else this.camera.scale = 3.4;
+      this.camera.scale = window.innerWidth < 768 ? 2.0 : 2.5;
     };
     window.addEventListener('resize', resize);
     resize();
@@ -187,24 +200,28 @@ class Game {
 
   setupKeyboard() {
     window.addEventListener('keydown', (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (['input', 'textarea'].includes(document.activeElement.tagName.toLowerCase())) return;
 
       this.keys[e.key.toLowerCase()] = true;
 
-      if (e.key === '1') this.selectTool('hoe');
-      if (e.key === '2') this.selectTool('water');
-      if (e.key === '3') this.selectTool('seed_carrot');
-      if (e.key === '4') this.selectTool('seed_strawberry');
-      if (e.key === '5') this.selectTool('fishing_rod');
-      if (e.key === '6') this.selectTool('sword_iron');
-      if (e.key === '7') this.selectTool('flower');
+      // Tool Hotbar Shortcuts (1-9)
+      const keyNum = parseInt(e.key);
+      if (keyNum >= 1 && keyNum <= 9) {
+        const toolMap = [
+          'hoe', 'water', 'axe', 'pickaxe', 'fishing_rod',
+          'sword_iron', 'seed_carrot', 'seed_strawberry', 'flower'
+        ];
+        this.selectTool(toolMap[keyNum - 1]);
+      }
 
+      // Actions
       if (e.key === ' ' || e.key.toLowerCase() === 'j') {
         e.preventDefault();
         this.performToolAction();
       }
 
       if (e.key.toLowerCase() === 'e' || e.key.toLowerCase() === 'k') {
+        e.preventDefault();
         this.performInteractAction();
       }
 
@@ -240,28 +257,26 @@ class Game {
             this.showNotification('Perabotan berhasil diletakkan! 🪑✨');
             this.selectedFurnToPlace = null;
             this.updateFurnitureUI();
+          } else {
+            this.showNotification('Tidak bisa meletakkan di sini (menghalangi pintu/dinding)!');
           }
         } else {
-          // Pickup furniture
-          const picked = this.farm.pickupFurnitureMC(tx, ty);
-          if (picked) {
-            this.showNotification('Perabotan diambil kembali ke tas! 📦');
+          // Remove existing furniture on click
+          const ok = this.farm.removeFurnitureMC(tx, ty);
+          if (ok) {
+            this.showNotification('Perabotan disimpan kembali ke tas! 📦');
             this.updateFurnitureUI();
           }
         }
         return;
       }
 
-      // Check click on NPC
-      if (this.farm.currentLocation === 'farm') {
-        const npc = this.farm.npcs.find(n => Math.hypot(n.x - tx, n.y - ty) <= 2.0);
-        if (npc) {
-          this.openNPCDialog(npc);
-          return;
-        }
+      // Quick interact on click near player
+      const ptx = Math.floor((this.player.x + 16) / 16);
+      const pty = Math.floor((this.player.y + 24) / 16);
+      if (Math.abs(ptx - tx) <= 1 && Math.abs(pty - ty) <= 1) {
+        this.performActionOnTile(tx, ty);
       }
-
-      this.performActionOnTile(tx, ty);
     };
 
     this.canvas.addEventListener('click', (e) => handleClick(e.clientX, e.clientY));
@@ -273,16 +288,15 @@ class Game {
     if (!joyBase || !joyStick) return;
 
     let touchId = null;
-    let center = { x: 0, y: 0 };
-    const maxRadius = 40;
 
     joyBase.addEventListener('touchstart', (e) => {
       e.preventDefault();
       const touch = e.changedTouches[0];
       touchId = touch.identifier;
-      const baseRect = joyBase.getBoundingClientRect();
-      center = { x: baseRect.left + baseRect.width / 2, y: baseRect.top + baseRect.height / 2 };
+      const rect = joyBase.getBoundingClientRect();
       this.touchJoystick.active = true;
+      this.touchJoystick.startX = rect.left + rect.width / 2;
+      this.touchJoystick.startY = rect.top + rect.height / 2;
     }, { passive: false });
 
     window.addEventListener('touchmove', (e) => {
@@ -290,21 +304,19 @@ class Game {
       for (let i = 0; i < e.changedTouches.length; i++) {
         const touch = e.changedTouches[i];
         if (touch.identifier === touchId) {
-          e.preventDefault();
-          const dx = touch.clientX - center.x;
-          const dy = touch.clientY - center.y;
+          const dx = touch.clientX - this.touchJoystick.startX;
+          const dy = touch.clientY - this.touchJoystick.startY;
           const dist = Math.hypot(dx, dy);
+          const maxDist = 38;
           const angle = Math.atan2(dy, dx);
-          const clamped = Math.min(dist, maxRadius);
-          joyStick.style.transform = `translate(${Math.cos(angle) * clamped}px, ${Math.sin(angle) * clamped}px)`;
+          const clampedDist = Math.min(dist, maxDist);
 
-          if (dist > 8) {
-            this.touchJoystick.dx = dx / dist;
-            this.touchJoystick.dy = dy / dist;
-          } else {
-            this.touchJoystick.dx = 0;
-            this.touchJoystick.dy = 0;
-          }
+          const sx = Math.cos(angle) * clampedDist;
+          const sy = Math.sin(angle) * clampedDist;
+          joyStick.style.transform = `translate(${sx}px, ${sy}px)`;
+
+          this.touchJoystick.dx = sx / maxDist;
+          this.touchJoystick.dy = sy / maxDist;
           break;
         }
       }
@@ -316,7 +328,7 @@ class Game {
           this.touchJoystick.active = false;
           this.touchJoystick.dx = 0;
           this.touchJoystick.dy = 0;
-          joyStick.style.transform = 'translate(0px, 0px)';
+          joyStick.style.transform = `translate(0px, 0px)`;
           touchId = null;
           break;
         }
@@ -347,7 +359,7 @@ class Game {
   }
 
   cycleNextTool() {
-    const tools = ['hoe', 'water', 'seed_carrot', 'seed_strawberry', 'fishing_rod', 'sword_iron', 'flower'];
+    const tools = ['hoe', 'water', 'axe', 'pickaxe', 'fishing_rod', 'sword_iron', 'seed_carrot', 'seed_strawberry', 'flower'];
     const idx = tools.indexOf(this.player.selectedTool);
     this.selectTool(tools[(idx + 1) % tools.length]);
   }
@@ -366,48 +378,43 @@ class Game {
   updateActivePrompt() {
     const { tx, ty } = this.getTargetTileCoords();
     const px = this.player.x + 16;
-    const py = this.player.y + 20;
+    const py = this.player.y + 16;
     const loc = this.farm.currentLocation;
 
-    // Inside Buildings
+    // Inside MC House
     if (loc === 'house_mc') {
-      if (Math.hypot(px - (this.farm.doorMCHouse.x * 16 + 8), py - (this.farm.doorMCHouse.y * 16 + 8)) < 24) {
+      if (Math.hypot(px - (8 * 16 + 8), py - (11 * 16 + 8)) < 24) {
         this.activePrompt = { text: 'Keluar ke Desa [E] 🚪', action: () => this.teleport('farm', 23, 9) };
         return;
       }
-      // Check if near placed bed
-      const hasBed = this.farm.placedFurnitureMC.some(f => f.id === 'bed_double' && Math.hypot(px - (f.x * 16 + 16), py - (f.y * 16 + 16)) < 32);
-      if (hasBed) {
-        this.activePrompt = { text: 'Tidur di Ranjang [E] 🛏️', action: () => this.sleepInBed() };
+      const nearBed = this.farm.placedFurnitureMC.some(f => f.id === 'bed_double' && Math.hypot(px - (f.x * 16 + 16), py - (f.y * 16 + 16)) < 36);
+      if (nearBed) {
+        this.activePrompt = { text: 'Tidur Berdua Menyambut Pagi [E] 🛏️❤️', action: () => this.sleepInBed() };
         return;
       }
       this.activePrompt = { text: 'Atur Perabotan [E] 🪑', action: () => this.toggleFurnitureEdit() };
       return;
     }
 
-    if (loc === 'house_budi' || loc === 'house_siti' || loc === 'house_blacksmith') {
+    // Inside NPC Houses
+    if (loc.startsWith('house_')) {
       const room = loc === 'house_budi' ? this.farm.houseBudi : (loc === 'house_siti' ? this.farm.houseSiti : this.farm.houseBlacksmith);
+      const exitDoor = loc === 'house_budi' ? { x: 8, y: 25 } : (loc === 'house_siti' ? { x: 17, y: 25 } : { x: 26, y: 25 });
       if (Math.hypot(px - (room.door.x * 16 + 8), py - (room.door.y * 16 + 8)) < 24) {
-        const exitDoor = loc === 'house_budi' ? { x: 8, y: 25 } : (loc === 'house_siti' ? { x: 17, y: 25 } : { x: 26, y: 25 });
         this.activePrompt = { text: 'Keluar ke Desa [E] 🚪', action: () => this.teleport('farm', exitDoor.x, exitDoor.y) };
         return;
       }
-      const npcRole = loc === 'house_budi' ? 'merchant' : (loc === 'house_siti' ? 'rancher' : 'blacksmith');
-      const npc = this.farm.npcs.find(n => n.role === npcRole);
-      if (npc) {
-        this.activePrompt = { text: `Bicara dengan ${npc.name.split(' ')[0]} [E] 💬`, action: () => this.openNPCDialog(npc) };
-        return;
-      }
+      this.activePrompt = null;
+      return;
     }
 
-    // In Mystic Woods
+    // Inside Mystic Woods
     if (loc === 'woods') {
-      if (Math.hypot(px - (1 * 16 + 8), py - (15 * 16 + 8)) < 24) {
+      if (Math.hypot(px - (2 * 16 + 8), py - (15 * 16 + 8)) < 28) {
         this.activePrompt = { text: 'Kembali ke Desa Damai [E] 🏡', action: () => this.teleport('farm', 44, 2) };
         return;
       }
-      // Check nearest monster to attack
-      const nearMonster = this.farm.monsters.find(m => Math.hypot(m.x - px, m.y - py) < 36);
+      const nearMonster = this.farm.monsters.find(m => Math.hypot(m.x - px, m.y - py) < 38);
       if (nearMonster) {
         this.activePrompt = { text: `Tebas ${nearMonster.type.toUpperCase()} [Spasi] ⚔️`, action: () => this.performToolAction() };
         return;
@@ -443,91 +450,140 @@ class Game {
       return;
     }
 
-    // 4. NPCs in village
-    const npc = this.farm.npcs.find(n => Math.hypot(n.x * 16 + 8 - px, n.y * 16 + 8 - py) < 32);
+    // 4. NPCs in village (wander around)
+    const npc = this.farm.npcs.find(n => Math.hypot(n.x + 8 - px, n.y + 8 - py) < 34);
     if (npc) {
       this.activePrompt = { text: `Bicara dengan ${npc.name.split(' ')[0]} [E] 💬`, action: () => this.openNPCDialog(npc) };
       return;
     }
 
-    // 5. Chest & Sell Bin
-    const targetTile = this.farm.grid[ty] && this.farm.grid[ty][tx];
-    if (targetTile && targetTile.type === 'chest') {
+    // 5. Shared Chest & Sell Bin
+    if (Math.hypot(px - (22 * 16 + 8), py - (8 * 16 + 8)) < 24) {
       this.activePrompt = { text: 'Buka Peti Bersama [E] 📦', action: () => this.openChestModal() };
       return;
     }
-    if (targetTile && targetTile.type === 'sell_bin') {
-      this.activePrompt = { text: 'Jual Semua Hasil Panen [E] 🪙', action: () => this.sellProduce() };
+    if (Math.hypot(px - (24 * 16 + 8), py - (8 * 16 + 8)) < 24) {
+      this.activePrompt = { text: 'Jual Semua Hasil Panen & Monster [E] 🪙', action: () => this.sellProduce() };
       return;
     }
 
-    // 6. Fishing spot
-    if (this.player.selectedTool === 'fishing_rod' && targetTile && targetTile.type === 'water') {
-      this.activePrompt = { text: 'Mulai Memancing [E] 🎣', action: () => this.startFishing() };
+    // 6. Resource Nodes (Rocks / Trees in front of player)
+    const facingNode = this.farm.resourceNodes.find(n => n.hp > 0 && n.x === tx && n.y === ty);
+    if (facingNode) {
+      if (facingNode.type === 'rock' || facingNode.type === 'ore') {
+        this.activePrompt = { text: 'Tambang Batu / Bijih [Spasi] ⛏️', action: () => this.mineResource(tx, ty) };
+        return;
+      } else {
+        this.activePrompt = { text: 'Tebas Batang Kayu [Spasi] 🪓', action: () => this.chopResource(tx, ty) };
+        return;
+      }
+    }
+
+    // 7. Scenic Lake Fishing (Facing Water)
+    if (tx >= 0 && tx < this.farm.cols && ty >= 0 && ty < this.farm.rows && this.farm.grid[ty][tx].type === 'water') {
+      this.activePrompt = { text: 'Mulai Memancing Ikan [Spasi/E] 🎣', action: () => this.startFishing() };
       return;
     }
 
-    // 7. Animal petting
-    const animal = this.animalManager.getNearestAnimal(px, py, 32);
+    // 8. Pet Animals in Pasture
+    const animal = this.animalManager.animals.find(a => Math.hypot(a.x - px, a.y - py) < 28);
     if (animal) {
       this.activePrompt = { text: `Elus ${animal.name} [E] ❤️`, action: () => animal.pet() };
       return;
     }
 
-    // 8. Ripe crop harvest
-    if (targetTile && targetTile.crop && targetTile.crop.ready) {
+    // 9. Harvest ready crops
+    if (tx >= 0 && tx < this.farm.cols && ty >= 0 && ty < this.farm.rows && this.farm.grid[ty][tx].crop?.ready) {
       this.activePrompt = { text: 'Petik Panen [E] 🧺', action: () => this.harvestTile(tx, ty) };
       return;
     }
 
-    // 9. Farmland watering
-    if (targetTile && targetTile.type === 'farmland' && !targetTile.watered) {
-      this.activePrompt = { text: 'Siram Tanah [Spasi] 💧', action: () => this.waterTile(tx, ty) };
+    // 10. Water dry farmland
+    if (tx >= 0 && tx < this.farm.cols && ty >= 0 && ty < this.farm.rows && this.farm.grid[ty][tx].tilled && !this.farm.grid[ty][tx].watered) {
+      this.activePrompt = { text: 'Siram Air Tanah [Spasi] 💧', action: () => this.waterTile(tx, ty) };
       return;
     }
 
     this.activePrompt = null;
   }
 
-  teleport(loc, tx, ty) {
-    this.farm.currentLocation = loc;
+  teleport(newLoc, tx, ty) {
+    this.farm.currentLocation = newLoc;
     this.player.x = tx * 16;
     this.player.y = ty * 16;
-    this.network.send({ type: 'location_change', location: loc });
-    if (loc === 'woods') {
-      this.showNotification('Memasuki Hutan Misterius! Waspada terhadap monster! 🌲⚔️');
-    } else if (loc === 'farm') {
-      this.showNotification('Kembali ke Desa Kebun Cinta yang damai! 🌾☀️');
-    }
-    this.updateHUD();
+    this.camera.x = this.player.x - this.canvas.width / 2;
+    this.camera.y = this.player.y - this.canvas.height / 2;
+
+    this.network.send({
+      type: 'teleport',
+      location: newLoc,
+      x: this.player.x,
+      y: this.player.y
+    });
+
+    const locNames = {
+      farm: 'Desa Kebun Cinta 🌾',
+      house_mc: 'Rumah Utama Pasangan 🏡',
+      house_budi: 'Toko Tani Pak Budi 🛒',
+      house_siti: 'Peternakan Mak Siti 🐮',
+      house_blacksmith: 'Pandai Besi Borin ⚔️',
+      woods: 'Hutan Misterius (Waspada Monster!) 🌲⚔️'
+    };
+    this.showNotification(`Memasuki ${locNames[newLoc] || newLoc}`);
   }
 
   sleepInBed() {
     this.farm.sleepTogether();
-    this.showNotification('Kalian berdua tidur nyenyak di ranjang hangat... Selamat pagi! ☀️🛏️');
-    this.network.send({ type: 'action_sleep' });
+    this.showNotification('Tidur lelap bersama pasangan... Pagi hari telah tiba! ☀️💖');
+    this.network.send({ type: 'sleep_sync', day: this.farm.dayCount, time: this.farm.timeMinutes });
     this.updateHUD();
   }
 
   toggleFurnitureEdit() {
-    document.getElementById('modalFurniturePlacement')?.classList.toggle('hidden');
-    this.updateFurnitureUI();
+    this.furnitureEditMode = !this.furnitureEditMode;
+    const modal = document.getElementById('modalFurniturePlacement');
+    if (this.furnitureEditMode) {
+      this.updateFurnitureUI();
+      modal?.classList.remove('hidden');
+    } else {
+      modal?.classList.add('hidden');
+      this.selectedFurnToPlace = null;
+    }
   }
 
   updateFurnitureUI() {
     const list = document.getElementById('ownedFurnitureList');
     if (!list) return;
+    list.innerHTML = '';
+
     if (this.farm.ownedFurniture.length === 0) {
-      list.innerHTML = '<p style="font-size:12px; color:#747d8c;">Kamu belum punya perabotan di tas. Beli di Toko Pak Budi ya! 🛒</p>';
+      list.innerHTML = '<p style="color:#747d8c; font-size:12px;">Belum ada perabotan di tas. Beli perabotan di Toko Pak Budi ya! 🛒</p>';
       return;
     }
-    list.innerHTML = this.farm.ownedFurniture.map(id => {
-      const def = FURNITURE_DEFINITIONS[id];
-      return `<button class="btn btn-outline" style="font-size:12px;" onclick="game.selectedFurnToPlace='${id}'; game.furnitureEditMode=true; document.getElementById('modalFurniturePlacement').classList.add('hidden'); game.showNotification('Klik lantai rumah untuk meletakkan ${def.name}!');">${def.icon} Pasang ${def.name}</button>`;
-    }).join('');
+
+    this.farm.ownedFurniture.forEach((furnId, idx) => {
+      const def = FURNITURE_DEFINITIONS[furnId];
+      if (!def) return;
+      const item = document.createElement('div');
+      item.className = 'store-item-card';
+      item.innerHTML = `
+        <div style="font-size:24px;">${def.icon}</div>
+        <div style="flex:1;">
+          <strong>${def.name}</strong>
+          <p style="font-size:11px; color:#57606f;">Ukuran: ${def.w}x${def.h}</p>
+        </div>
+        <button class="btn-buy" style="background:#2ed573;">Pasang 🪑</button>
+      `;
+      item.querySelector('button').onclick = () => {
+        this.selectedFurnToPlace = furnId;
+        this.farm.ownedFurniture.splice(idx, 1);
+        document.getElementById('modalFurniturePlacement').classList.add('hidden');
+        this.showNotification(`Klik lantai rumah untuk meletakkan ${def.name}! ✨`);
+      };
+      list.appendChild(item);
+    });
   }
 
-  // --- Tool / Action Execution ---
   performToolAction() {
     const { tx, ty } = this.getTargetTileCoords();
     const loc = this.farm.currentLocation;
@@ -535,7 +591,7 @@ class Game {
     // In Mystic Woods -> Sword Attack on Monsters!
     if (loc === 'woods' || this.player.selectedTool.startsWith('sword_')) {
       this.player.currentAction = 'action';
-      this.player.actionTimer = 0.25;
+      this.player.actionTimer = 0.22;
       this.player.slashTimer = 0.2;
       if (window.soundSystem) window.soundSystem.playSwordSwing();
 
@@ -561,8 +617,9 @@ class Game {
 
     const tool = this.player.selectedTool;
     this.player.currentAction = 'action';
-    this.player.actionTimer = 0.25;
+    this.player.actionTimer = 0.22;
 
+    // 1. Cangkul
     if (tool === 'hoe') {
       const ok = this.farm.tillSoil(tx, ty);
       if (ok) {
@@ -570,9 +627,21 @@ class Game {
         this.showSparkle(tx * 16 + 8, ty * 16 + 8, '🌾');
         this.network.send({ type: 'action_till', x: tx, y: ty });
       }
-    } else if (tool === 'water') {
+    }
+    // 2. Penyiram
+    else if (tool === 'water') {
       this.waterTile(tx, ty);
-    } else if (tool.startsWith('seed_')) {
+    }
+    // 3. Kapak (Chop Wood)
+    else if (tool === 'axe') {
+      this.chopResource(tx, ty);
+    }
+    // 4. Beliung (Mine Rock)
+    else if (tool === 'pickaxe') {
+      this.mineResource(tx, ty);
+    }
+    // 5. Menanam Bibit
+    else if (tool.startsWith('seed_')) {
       const cropId = tool.replace('seed_', '');
       if ((this.farm.chest.seeds[cropId] || 0) > 0) {
         const ok = this.farm.plantCrop(tx, ty, cropId);
@@ -582,19 +651,60 @@ class Game {
           this.showSparkle(tx * 16 + 8, ty * 16 + 8, '🌱');
           this.network.send({ type: 'action_plant', x: tx, y: ty, cropId });
         } else {
-          this.showNotification('Cangkul tanah dulu sebelum menanam! 🌾');
+          this.showNotification('Cangkul tanah dulu sebelum menanam bibit! 🌾');
         }
       } else {
-        this.showNotification(`Bibit ${cropId} habis! Beli di Pak Budi ya~ 🛒`);
+        this.showNotification(`Bibit ${cropId} habis! Beli di Toko Pak Budi ya~ 🛒`);
       }
-    } else if (tool === 'fishing_rod') {
+    }
+    // 6. Pancing
+    else if (tool === 'fishing_rod') {
       this.startFishing();
-    } else if (tool === 'flower') {
+    }
+    // 7. Bunga Cinta
+    else if (tool === 'flower') {
       this.triggerCoupleKiss(false);
       this.showEmote('🌸');
     }
 
     this.updateHUD();
+  }
+
+  chopResource(tx, ty) {
+    const res = this.farm.chopWood(tx, ty);
+    if (res) {
+      if (window.soundSystem) window.soundSystem.playSwordSwing();
+      this.showSparkle(tx * 16 + 8, ty * 16 + 8, '🪓');
+      if (res.destroyed) {
+        this.showNotification(`Mendapatkan +${res.yield} Kayu! Disimpan di Peti 🪵✨`);
+        this.showDamage(tx * 16, ty * 16 - 8, `+${res.yield}🪵`, '#2ed573');
+      } else {
+        this.showDamage(tx * 16, ty * 16 - 8, `Tebas! (${res.hp} sisa)`, '#ffa502');
+      }
+      this.network.send({ type: 'action_chop', x: tx, y: ty });
+      this.updateHUD();
+    } else {
+      this.showNotification('Arahkan kapak ke pohon atau batang kayu! 🪓');
+    }
+  }
+
+  mineResource(tx, ty) {
+    const res = this.farm.mineRock(tx, ty);
+    if (res) {
+      if (window.soundSystem) window.soundSystem.playTill();
+      this.showSparkle(tx * 16 + 8, ty * 16 + 8, '⛏️');
+      if (res.destroyed) {
+        const bonusOre = res.oreYield > 0 ? ` & +${res.oreYield} Emas 💎` : '';
+        this.showNotification(`Mendapatkan +${res.yield} Batu${bonusOre}! Disimpan di Peti 🪨✨`);
+        this.showDamage(tx * 16, ty * 16 - 8, `+${res.yield}🪨`, '#70a1ff');
+      } else {
+        this.showDamage(tx * 16, ty * 16 - 8, `Tambang! (${res.hp} sisa)`, '#ffa502');
+      }
+      this.network.send({ type: 'action_mine', x: tx, y: ty });
+      this.updateHUD();
+    } else {
+      this.showNotification('Arahkan beliung ke batu alam atau urat bijih! ⛏️');
+    }
   }
 
   waterTile(tx, ty) {
@@ -623,17 +733,294 @@ class Game {
       return;
     }
     const { tx, ty } = this.getTargetTileCoords();
-    this.performActionOnTile(tx, ty);
+    // Harvest if ready
+    if (this.farm.currentLocation === 'farm' && this.farm.grid[ty] && this.farm.grid[ty][tx]?.crop?.ready) {
+      this.harvestTile(tx, ty);
+    }
+  }
+
+  // --- MONSTER ATTACK & PLAYER DAMAGE ---
+  playerTakeDamage(dmg) {
+    this.farm.playerHp = Math.max(0, this.farm.playerHp - dmg);
+    this.screenFlashRed = 0.35;
+    this.showDamage(this.player.x + 16, this.player.y - 6, `-${dmg}💔`, '#ff4757');
+
+    if (this.farm.playerHp <= 0) {
+      this.playerFaintAndRespawn();
+    }
+    this.updateHUD();
+  }
+
+  playerFaintAndRespawn() {
+    this.showNotification('Kamu pingsan diserang monster! Diselamatkan kembali ke kasur rumah... 🛏️❤️');
+    this.farm.playerHp = this.farm.playerMaxHp;
+    this.teleport('house_mc', 8, 8);
+    this.updateHUD();
+  }
+
+  // --- NPCS & DIALOGS ---
+  openNPCDialog(npc) {
+    const modal = document.getElementById('modalNPC');
+    document.getElementById('npcName').textContent = npc.name;
+    document.getElementById('npcPortrait').src = npc.portrait;
+    document.getElementById('npcDialogText').textContent = npc.dialog;
+
+    const actionsContainer = document.getElementById('npcActions');
+    actionsContainer.innerHTML = '';
+
+    if (npc.role === 'merchant') {
+      const btnSeeds = document.createElement('button');
+      btnSeeds.className = 'btn-buy';
+      btnSeeds.textContent = '🌱 Beli Bibit Unggul';
+      btnSeeds.onclick = () => { modal.classList.add('hidden'); this.openStoreModal('seeds'); };
+      actionsContainer.appendChild(btnSeeds);
+
+      const btnFurn = document.createElement('button');
+      btnFurn.className = 'btn-buy';
+      btnFurn.textContent = '🪑 Beli Perabotan Rumah';
+      btnFurn.onclick = () => { modal.classList.add('hidden'); this.openStoreModal('furniture'); };
+      actionsContainer.appendChild(btnFurn);
+    } else if (npc.role === 'rancher') {
+      const btnAnimals = document.createElement('button');
+      btnAnimals.className = 'btn-buy';
+      btnAnimals.textContent = '🐮 Beli Hewan Ternak';
+      btnAnimals.onclick = () => { modal.classList.add('hidden'); this.openStoreModal('animals'); };
+      actionsContainer.appendChild(btnAnimals);
+
+      const btnPets = document.createElement('button');
+      btnPets.className = 'btn-buy';
+      btnPets.textContent = '🐾 Beli Hewan Peliharaan (Mengikuti MC)';
+      btnPets.onclick = () => { modal.classList.add('hidden'); this.openStoreModal('pets'); };
+      actionsContainer.appendChild(btnPets);
+    } else if (npc.role === 'blacksmith') {
+      const btnSword = document.createElement('button');
+      btnSword.className = 'btn-buy';
+      btnSword.textContent = '⚔️ Beli Pedang Besi (80 🪙)';
+      btnSword.onclick = () => {
+        if (this.farm.buyTool('sword_iron', 80)) {
+          this.showNotification('Pedang Besi Tajam siap digunakan berburu! ⚔️✨');
+          modal.classList.add('hidden');
+          this.updateHUD();
+        } else {
+          this.showNotification('Koin tidak cukup atau pedang sudah dimiliki! 🪙');
+        }
+      };
+      actionsContainer.appendChild(btnSword);
+    } else if (npc.role === 'fisher') {
+      const btnRod = document.createElement('button');
+      btnRod.className = 'btn-buy';
+      btnRod.textContent = '🎣 Beli Alat Pancing Bambu (45 🪙)';
+      btnRod.onclick = () => {
+        if (this.farm.buyTool('fishing_rod', 45)) {
+          this.showNotification('Alat Pancing Bambu siap memancing di danau! 🎣✨');
+          modal.classList.add('hidden');
+          this.updateHUD();
+        } else {
+          this.showNotification('Koin tidak cukup atau pancing sudah dibeli! 🪙');
+        }
+      };
+      actionsContainer.appendChild(btnRod);
+    } else if (npc.role === 'bot_elder') {
+      const btnBots = document.createElement('button');
+      btnBots.className = 'btn-buy';
+      btnBots.textContent = '🤖 Sewa Pembantu Bot';
+      btnBots.onclick = () => { modal.classList.add('hidden'); document.getElementById('modalBots').classList.remove('hidden'); };
+      actionsContainer.appendChild(btnBots);
+    }
+
+    modal.classList.remove('hidden');
+  }
+
+  openStoreModal(category) {
+    const modal = document.getElementById('modalStore');
+    const title = document.getElementById('storeTitle');
+    const list = document.getElementById('storeItemsList');
+    list.innerHTML = '';
+
+    if (category === 'seeds') {
+      title.textContent = '🌱 Toko Bibit Unggul (Pak Budi)';
+      for (const [id, def] of Object.entries(CROP_DEFINITIONS)) {
+        const item = document.createElement('div');
+        item.className = 'store-item-card';
+        item.innerHTML = `
+          <div style="font-size:28px;">${def.icon}</div>
+          <div style="flex:1;">
+            <strong>${def.name}</strong>
+            <p style="font-size:11px; color:#57606f;">Tumbuh ${def.growTime} detik • Jual ${def.sellPrice}🪙</p>
+          </div>
+          <button class="btn-buy">${def.seedPrice} 🪙</button>
+        `;
+        item.querySelector('button').onclick = () => {
+          if (this.farm.buySeed(id)) {
+            this.showNotification(`Membeli 1 bibit ${def.name}! Disimpan di Peti 📦🌱`);
+            this.updateHUD();
+          } else {
+            this.showNotification('Koin tidak mencukupi! 🪙');
+          }
+        };
+        list.appendChild(item);
+      }
+    } else if (category === 'furniture') {
+      title.textContent = '🪑 Toko Perabotan Rumah MC (Pak Budi)';
+      for (const [id, def] of Object.entries(FURNITURE_DEFINITIONS)) {
+        const item = document.createElement('div');
+        item.className = 'store-item-card';
+        item.innerHTML = `
+          <div style="font-size:28px;">${def.icon}</div>
+          <div style="flex:1;">
+            <strong>${def.name}</strong>
+            <p style="font-size:11px; color:#57606f;">${def.desc}</p>
+          </div>
+          <button class="btn-buy">${def.price} 🪙</button>
+        `;
+        item.querySelector('button').onclick = () => {
+          if (this.farm.buyFurniture(id)) {
+            this.showNotification(`Membeli ${def.name}! Atur letaknya di dalam Rumah MC 🏡✨`);
+            this.updateHUD();
+          } else {
+            this.showNotification('Koin tidak mencukupi! 🪙');
+          }
+        };
+        list.appendChild(item);
+      }
+    } else if (category === 'animals') {
+      title.textContent = '🐮 Peternakan Mak Siti';
+      const animals = [
+        { type: 'chicken', name: 'Ayam Petelur', price: 60, icon: '🐔', desc: 'Menghasilkan telur segar setiap pagi.' },
+        { type: 'cow', name: 'Sapi Perah', price: 120, icon: '🐮', desc: 'Menghasilkan susu lezat bernilai jual tinggi.' },
+        { type: 'sheep', name: 'Domba Wol', price: 100, icon: '🐑', desc: 'Menghasilkan wol hangat untuk selimut.' }
+      ];
+      animals.forEach(a => {
+        const item = document.createElement('div');
+        item.className = 'store-item-card';
+        item.innerHTML = `
+          <div style="font-size:28px;">${a.icon}</div>
+          <div style="flex:1;">
+            <strong>${a.name}</strong>
+            <p style="font-size:11px; color:#57606f;">${a.desc}</p>
+          </div>
+          <button class="btn-buy">${a.price} 🪙</button>
+        `;
+        item.querySelector('button').onclick = () => {
+          if (this.farm.buyAnimal(a.type, a.name, a.price)) {
+            this.showNotification(`Membeli ${a.name}! Berada di padang rumput peternakan Mak Siti ❤️`);
+            this.updateHUD();
+          } else {
+            this.showNotification('Koin tidak mencukupi! 🪙');
+          }
+        };
+        list.appendChild(item);
+      });
+    } else if (category === 'pets') {
+      title.textContent = '🐾 Hewan Peliharaan Setia (Mak Siti)';
+      const pets = [
+        { type: 'pet_chick', name: 'Anak Ayam Imut 🐥', price: 50, icon: '🐥', desc: 'Selalu lincah melompat mengikuti kemana pun kamu pergi.' },
+        { type: 'pet_bunny', name: 'Kelinci Salju 🐰', price: 75, icon: '🐰', desc: 'Kelinci manis penenang hati yang setia menemanimu.' },
+        { type: 'pet_piggy', name: 'Babi Mungil 🐷', price: 65, icon: '🐷', desc: 'Babi kecil lucu yang suka mendengus gembira.' }
+      ];
+      pets.forEach(p => {
+        const item = document.createElement('div');
+        item.className = 'store-item-card';
+        item.innerHTML = `
+          <div style="font-size:28px;">${p.icon}</div>
+          <div style="flex:1;">
+            <strong>${p.name}</strong>
+            <p style="font-size:11px; color:#57606f;">${p.desc}</p>
+          </div>
+          <button class="btn-buy">${p.price} 🪙</button>
+        `;
+        item.querySelector('button').onclick = () => {
+          if (this.farm.buyPet(p.type, p.name, p.price)) {
+            this.showNotification(`Memilih ${p.name} sebagai teman setia yang mengikutimu! 🐾❤️`);
+            this.updateHUD();
+          } else {
+            this.showNotification('Koin tidak mencukupi! 🪙');
+          }
+        };
+        list.appendChild(item);
+      });
+    }
+
+    modal.classList.remove('hidden');
+  }
+
+  openChestModal() {
+    const modal = document.getElementById('modalChest');
+    const seedsList = document.getElementById('chestSeedsList');
+    const produceList = document.getElementById('chestProduceList');
+    seedsList.innerHTML = '';
+    produceList.innerHTML = '';
+
+    for (const [cropId, count] of Object.entries(this.farm.chest.seeds)) {
+      const def = CROP_DEFINITIONS[cropId];
+      if (def) {
+        seedsList.innerHTML += `<div class="chest-item"><span>${def.icon} ${def.name}:</span> <strong>${count}</strong></div>`;
+      }
+    }
+
+    for (const [prodId, count] of Object.entries(this.farm.chest.produce)) {
+      if (count > 0) {
+        let name = prodId;
+        let icon = '📦';
+        if (CROP_DEFINITIONS[prodId]) { name = CROP_DEFINITIONS[prodId].name; icon = CROP_DEFINITIONS[prodId].icon; }
+        else if (prodId === 'wood') { name = 'Batang Kayu'; icon = '🪵'; }
+        else if (prodId === 'stone') { name = 'Batu Alam'; icon = '🪨'; }
+        else if (prodId === 'ore') { name = 'Bijih Emas'; icon = '💎'; }
+        else if (prodId === 'fish') { name = 'Ikan Segar'; icon = '🐟'; }
+        else if (prodId === 'monster_gel') { name = 'Gel Monster'; icon = '🧪'; }
+
+        // Allow eating crops to heal HP!
+        const canEat = CROP_DEFINITIONS[prodId] ? `<button class="btn-eat" style="margin-left:6px; font-size:10px; padding:2px 6px; background:#2ed573; border:none; border-radius:6px; color:#fff; cursor:pointer;" onclick="game.eatProduceItem('${prodId}')">Makan ❤️</button>` : '';
+
+        produceList.innerHTML += `<div class="chest-item"><span>${icon} ${name}:</span> <div><strong>${count}</strong>${canEat}</div></div>`;
+      }
+    }
+
+    if (produceList.innerHTML === '') {
+      produceList.innerHTML = '<p style="color:#747d8c; font-size:12px;">Peti hasil panen masih kosong. Tanam sayur atau tambang batu dulu ya!</p>';
+    }
+
+    modal.classList.remove('hidden');
+  }
+
+  eatProduceItem(cropId) {
+    const res = this.farm.eatCrop(cropId);
+    if (res) {
+      if (window.soundSystem) window.soundSystem.playHarvest();
+      this.screenFlashGreen = 0.3;
+      this.showSparkle(this.player.x + 16, this.player.y, '❤️');
+      this.showNotification(`Memakan ${res.def.name}! Nyawa bertambah +${res.heal} ❤️`);
+      this.openChestModal();
+      this.updateHUD();
+    }
+  }
+
+  sellProduce() {
+    const earned = this.farm.sellAllProduce();
+    if (earned > 0) {
+      if (window.soundSystem) window.soundSystem.playCoin();
+      this.showDamage(this.player.x + 16, this.player.y - 12, `+${earned}🪙`, '#f1c40f');
+      this.showNotification(`Berhasil menjual semua hasil! Mendapatkan +${earned} Koin Cinta! 🪙✨`);
+      this.updateHUD();
+    } else {
+      this.showNotification('Tidak ada hasil panen atau barang monster untuk dijual di peti!');
+    }
   }
 
   startFishing() {
+    if (!this.farm.unlockedTools.fishing_rod) {
+      this.showNotification('Beli alat pancing bambu dulu di Paman Sam (Dermaga) 🎣');
+      return;
+    }
     if (this.player.isFishing) {
       if (this.player.fishingBite) {
-        const caught = this.farm.catchFish();
-        this.showNotification(`Berhasil menangkap ${caught.name}! Dijual untuk koin! 🐟🎉`);
-        if (window.soundSystem) window.soundSystem.playCoin();
+        if (window.soundSystem) window.soundSystem.playHarvest();
+        this.farm.chest.produce.fish = (this.farm.chest.produce.fish || 0) + 1;
+        this.farm.addLovePoints(12);
+        this.showNotification('Berhasil menangkap Ikan Danau Segar! Disimpan di Peti 🐟🎉');
+        this.showDamage(this.player.x + 16, this.player.y - 12, '+1 🐟', '#00cec9');
       } else {
-        this.showNotification('Ikan terlepas! Coba lagi ya~');
+        this.showNotification('Ikan terlepas karena kamu menarik terlalu cepat!');
       }
       this.player.isFishing = false;
       this.player.fishingBite = false;
@@ -642,231 +1029,90 @@ class Game {
     }
 
     this.player.isFishing = true;
-    this.player.fishingTimer = 2.5 + Math.random() * 2;
+    this.player.fishingTimer = 2.5 + Math.random() * 3.5;
     this.player.fishingBite = false;
-    this.showNotification('Melempar pancing ke danau... Tunggu ikan menyambar! 🎣');
+    this.showNotification('Melempar kail ke danau... Tunggu sampai tanda [!] muncul! 🎣');
   }
 
-  // --- NPC Dialog & Shops ---
-  openNPCDialog(npc) {
-    const modal = document.getElementById('modalNPC');
-    document.getElementById('npcName').textContent = npc.name;
-    document.getElementById('npcPortrait').src = npc.portrait;
-    document.getElementById('npcDialogText').textContent = npc.dialog;
-
-    const actionContainer = document.getElementById('npcActions');
-    actionContainer.innerHTML = '';
-
-    if (npc.role === 'merchant') {
-      actionContainer.innerHTML = `
-        <button class="btn btn-primary" onclick="game.openStoreModal('seeds')">🌱 Beli Bibit Tanaman</button>
-        <button class="btn btn-secondary" onclick="game.openStoreModal('furniture')">🪑 Beli Perabotan Rumah</button>
-      `;
-    } else if (npc.role === 'rancher') {
-      actionContainer.innerHTML = `
-        <button class="btn btn-primary" onclick="game.openStoreModal('animals')">🐮 Beli Hewan Ternak</button>
-        <button class="btn btn-secondary" onclick="game.openStoreModal('pets')">🐕 Beli Hewan Peliharaan Pengikut</button>
-      `;
-    } else if (npc.role === 'blacksmith') {
-      actionContainer.innerHTML = `
-        <button class="btn btn-primary" onclick="game.buyWeapon('sword_iron', 80)">⚔️ Beli Pedang Besi (80 🪙)</button>
-        <button class="btn btn-secondary" onclick="game.buyWeapon('sword_gold', 160)">🗡️ Beli Pedang Emas Ksatria (160 🪙)</button>
-      `;
-    } else if (npc.role === 'fisher') {
-      actionContainer.innerHTML = `
-        <button class="btn btn-primary" onclick="game.buyFishingRod()">🎣 Beli Alat Pancing Bambu (60 🪙)</button>
-        <button class="btn btn-secondary" onclick="game.sellProduce()">🪙 Jual Ikan Hasil Tangkapan</button>
-      `;
-    } else if (npc.role === 'bot_elder') {
-      actionContainer.innerHTML = `
-        <button class="btn btn-primary" onclick="document.getElementById('modalNPC').classList.add('hidden'); document.getElementById('modalBots').classList.remove('hidden');">🤖 Kelola / Sewa Bot Pembantu</button>
-      `;
-    }
-
-    modal.classList.remove('hidden');
+  showEmote(emoji) {
+    this.player.emote = emoji;
+    this.player.emoteTimer = 2.5;
+    this.network.send({ type: 'emote', emote: emoji });
   }
 
-  openStoreModal(tab) {
-    document.getElementById('modalNPC').classList.add('hidden');
-    const store = document.getElementById('modalStore');
-    const container = document.getElementById('storeItemsList');
-    container.innerHTML = '';
-
-    if (tab === 'seeds') {
-      document.getElementById('storeTitle').textContent = '🌱 Toko Bibit Pak Budi';
-      container.innerHTML = Object.entries(CROP_DEFINITIONS).map(([id, def]) => `
-        <div class="store-card">
-          <span class="store-icon">${def.icon}</span>
-          <div class="store-info">
-            <strong>${def.name}</strong>
-            <p>Panen: ${def.growTime}s | Jual: ${def.sellPrice}🪙</p>
-          </div>
-          <button class="btn-buy" onclick="game.farm.buySeeds('${id}', 1); game.showNotification('Membeli bibit ${def.name}! 🌱'); game.updateHUD();">Beli (${def.seedPrice}🪙)</button>
-        </div>
-      `).join('');
-    } else if (tab === 'furniture') {
-      document.getElementById('storeTitle').textContent = '🪑 Toko Perabot Rumah (Isi Rumah Kosongmu)';
-      container.innerHTML = Object.entries(FURNITURE_DEFINITIONS).map(([id, def]) => `
-        <div class="store-card">
-          <span class="store-icon">${def.icon}</span>
-          <div class="store-info">
-            <strong>${def.name}</strong>
-            <p>${def.desc}</p>
-          </div>
-          <button class="btn-buy" onclick="game.buyFurnitureItem('${id}')">Beli (${def.price}🪙)</button>
-        </div>
-      `).join('');
-    } else if (tab === 'animals') {
-      document.getElementById('storeTitle').textContent = '🐮 Peternakan Mak Siti';
-      const animalStore = [
-        { type: 'baby_chick', name: 'Anak Ayam Kuning 🐥', price: 40, desc: 'Tumbuh menjadi ayam petelur.' },
-        { type: 'chicken', name: 'Ayam Petelur 🐔', price: 80, desc: 'Menghasilkan telur emas.' },
-        { type: 'sheep', name: 'Domba Wol 🐑', price: 140, desc: 'Menghasilkan wol lembut.' },
-        { type: 'pig', name: 'Babi Lucu 🐷', price: 160, desc: 'Mencari jamur truffle.' },
-        { type: 'cow', name: 'Sapi Perah 🐮', price: 220, desc: 'Menghasilkan susu segar.' }
-      ];
-      container.innerHTML = animalStore.map(a => `
-        <div class="store-card">
-          <div class="store-info">
-            <strong>${a.name}</strong>
-            <p>${a.desc}</p>
-          </div>
-          <button class="btn-buy" onclick="game.buyAnimalItem('${a.type}', '${a.name}', ${a.price})">Beli (${a.price}🪙)</button>
-        </div>
-      `).join('');
-    } else if (tab === 'pets') {
-      document.getElementById('storeTitle').textContent = '🐕 Toko Hewan Peliharaan Pengikut';
-      const pets = [
-        { type: 'pet_chick', name: 'Anak Ayam Pipit 🐥', price: 40, desc: 'Selalu melompat gembira mengikutimu.' },
-        { type: 'pet_piggy', name: 'Babi Mini Lucu 🐷', price: 80, desc: 'Peliharaan setia yang berjalan di sampingmu.' },
-        { type: 'pet_bunny', name: 'Kelinci Lembut 🐰', price: 100, desc: 'Kelinci manis yang setia menemani petualanganmu.' }
-      ];
-      container.innerHTML = pets.map(p => `
-        <div class="store-card">
-          <div class="store-info">
-            <strong>${p.name}</strong>
-            <p>${p.desc}</p>
-          </div>
-          <button class="btn-buy" onclick="game.buyPetItem('${p.type}', '${p.name}', ${p.price})">Beli (${p.price}🪙)</button>
-        </div>
-      `).join('');
-    }
-
-    store.classList.remove('hidden');
-  }
-
-  buyWeapon(toolId, price) {
-    if (this.farm.unlockedTools[toolId]) {
-      this.showNotification('Kamu sudah memiliki pedang ini!');
-      return;
-    }
-    const ok = this.farm.buyTool(toolId, price);
-    if (ok) {
-      this.showNotification('Pedang berhasil dibeli! Siap membasmi monster di Hutan Misterius! ⚔️✨');
-      this.updateHUD();
-      document.getElementById('modalNPC').classList.add('hidden');
-    } else {
-      this.showNotification('Koin cinta tidak cukup!');
-    }
-  }
-
-  buyFishingRod() {
-    if (this.farm.unlockedTools.fishing_rod) {
-      this.showNotification('Kamu sudah memiliki alat pancing!');
-      return;
-    }
-    const ok = this.farm.buyTool('fishing_rod', 60);
-    if (ok) {
-      this.showNotification('Berhasil membeli Alat Pancing Bambu! 🎣');
-      this.updateHUD();
-      document.getElementById('modalNPC').classList.add('hidden');
-    } else {
-      this.showNotification('Koin tidak cukup! Butuh 60 koin cinta.');
-    }
-  }
-
-  buyAnimalItem(type, name, price) {
-    const ok = this.farm.buyAnimal(type, name, price);
-    if (ok) {
-      this.animalManager.syncFromFarm();
-      this.showNotification(`Selamat! ${name} sekarang ada di padang rumputmu! ❤️`);
-      this.updateHUD();
-      this.network.send({ type: 'animal_bought' });
-    } else {
-      this.showNotification('Koin tidak cukup untuk membeli hewan ini!');
-    }
-  }
-
-  buyPetItem(type, name, price) {
-    const ok = this.farm.buyPet(type, name, price);
-    if (ok) {
-      this.showNotification(`Selamat! ${name} sekarang menjadi hewan peliharaanmu dan mengikutimu! 🐾❤️`);
-      this.updateHUD();
-      this.network.send({ type: 'pet_bought', pet: this.farm.activePet });
-    } else {
-      this.showNotification('Koin cinta tidak cukup!');
-    }
-  }
-
-  buyFurnitureItem(furnId) {
-    const ok = this.farm.buyFurniture(furnId);
-    if (ok) {
-      this.showNotification(`Perabotan tersimpan di tas! Masuk ke rumah MC untuk meletakkannya 🪑✨`);
-      this.updateHUD();
-    } else {
-      this.showNotification('Koin tidak cukup!');
-    }
-  }
-
-  sellProduce() {
-    const earned = this.farm.sellAllProduce();
-    if (earned > 0) {
-      if (window.soundSystem) window.soundSystem.playCoin();
-      this.showNotification(`Semua hasil panen & ikan terjual! Dapat +${earned} Koin Cinta! 🪙🎉`);
-      this.network.send({ type: 'action_sell' });
-    } else {
-      this.showNotification('Belum ada sayur atau ikan untuk dijual~');
-    }
-    this.updateHUD();
-  }
-
-  triggerCoupleKiss(fromPartner = false) {
+  triggerCoupleKiss(isPartnerInitiated = false) {
     if (window.soundSystem) window.soundSystem.playKiss();
-    this.farm.addLovePoints(25);
-    const midX = (this.player.x + this.partner.x) / 2 + 16;
-    const midY = (this.player.y + this.partner.y) / 2 + 8;
-    for (let i = 0; i < 6; i++) {
-      this.showSparkle(midX + (Math.random() * 20 - 10), midY + (Math.random() * 20 - 10), '❤️');
-    }
     this.showEmote('😘');
-    if (!fromPartner) {
-      this.showNotification(`Kamu mengecup mesra ${this.partner.name}! Poin Cinta bertambah! 💕`);
-      this.network.send({ type: 'action_kiss' });
-    }
+    this.farm.addLovePoints(10);
     this.updateHUD();
+
+    for (let i = 0; i < 7; i++) {
+      this.showSparkle(
+        this.player.x + 16 + (Math.random() - 0.5) * 30,
+        this.player.y + 10 + (Math.random() - 0.5) * 20,
+        '💖'
+      );
+    }
+    if (!isPartnerInitiated) {
+      this.network.send({ type: 'kiss' });
+    }
   }
 
-  showEmote(emote) {
-    this.player.emote = emote;
-    this.player.emoteTimer = 3.0;
-    this.network.send({ type: 'action_emote', emote });
-  }
-
-  showSparkle(x, y, char = '✨') {
-    this.sparkles.push({ x, y, char, vy: -25, alpha: 1.0, life: 1.2 });
-  }
-
-  showDamage(x, y, text, color = '#e74c3c') {
-    this.floatingTexts.push({ x, y, text, color, vy: -28, alpha: 1.0, life: 1.2 });
+  toggleChatMinimize() {
+    this.chatMinimized = !this.chatMinimized;
+    const widget = document.getElementById('chatWidget');
+    const btn = document.getElementById('btnToggleChat');
+    if (widget && btn) {
+      widget.classList.toggle('minimized', this.chatMinimized);
+      btn.textContent = this.chatMinimized ? '💬' : '➖';
+    }
   }
 
   showNotification(text) {
-    this.notifications.push({ text, time: 3.5 });
-    if (this.notifications.length > 4) this.notifications.shift();
+    this.notifications.unshift({ text, time: 3.2 });
+    if (this.notifications.length > 3) this.notifications.pop();
   }
 
-  // --- Main Update Loop ---
+  showDamage(x, y, text, color = '#ff4757') {
+    this.floatingTexts.push({ x, y, text, color, vy: -20, life: 1.2 });
+  }
+
+  showSparkle(x, y, emoji = '✨') {
+    this.sparkles.push({ x, y, emoji, vy: -15, life: 0.8 });
+  }
+
+  updateHUD() {
+    // 1. Coins & Love
+    const coinsEl = document.getElementById('hudCoins');
+    if (coinsEl) coinsEl.textContent = this.farm.coins;
+
+    const loveEl = document.getElementById('hudLove');
+    if (loveEl) loveEl.textContent = `${this.farm.lovePoints} ❤️`;
+
+    const loveTitleEl = document.getElementById('hudLoveTitle');
+    if (loveTitleEl) loveTitleEl.textContent = this.farm.getLoveTitle();
+
+    // 2. Health Bar (Nyawa)
+    const hpFill = document.getElementById('hudHpFill');
+    const hpText = document.getElementById('hudHpText');
+    if (hpFill && hpText) {
+      const pct = Math.max(0, Math.min(100, (this.farm.playerHp / this.farm.playerMaxHp) * 100));
+      hpFill.style.width = `${pct}%`;
+      hpText.textContent = `${this.farm.playerHp}/${this.farm.playerMaxHp}`;
+    }
+
+    // 3. Time
+    const timeInfo = this.farm.getTimeOfDay();
+    const hours = Math.floor(this.farm.timeMinutes / 60);
+    const mins = Math.floor(this.farm.timeMinutes % 60);
+    const timeStr = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+    const timeEl = document.getElementById('hudTime');
+    if (timeEl) timeEl.textContent = `Hari ${this.farm.dayCount} - ${timeStr} (${timeInfo.label})`;
+  }
+
+  // --- Main Game Loop ---
   loop(timestamp) {
+    if (!this.lastTime) this.lastTime = timestamp;
     const delta = Math.min((timestamp - this.lastTime) / 1000, 0.1);
     this.lastTime = timestamp;
 
@@ -877,12 +1123,20 @@ class Game {
   }
 
   update(delta) {
-    this.farm.update(delta);
+    // Update farm & check monster attacks on player
+    const monsterHitDamage = this.farm.update(delta, this.player.x + 16, this.player.y + 16);
+    if (monsterHitDamage && monsterHitDamage > 0) {
+      this.playerTakeDamage(monsterHitDamage);
+    }
 
     if (this.farm.currentLocation === 'farm') {
       this.botManager.update(delta);
       this.animalManager.update(delta);
     }
+
+    // Flash screen timers
+    if (this.screenFlashRed > 0) this.screenFlashRed -= delta;
+    if (this.screenFlashGreen > 0) this.screenFlashGreen -= delta;
 
     // Slash animation timer
     if (this.player.slashTimer > 0) this.player.slashTimer -= delta;
@@ -893,11 +1147,11 @@ class Game {
       if (this.player.fishingTimer <= 0 && !this.player.fishingBite) {
         this.player.fishingBite = true;
         this.showSparkle(this.player.x + 16, this.player.y - 10, '❗');
-        this.showNotification('Ikan menyambar umpan! Tekan [E] untuk menarik! 🎣');
+        this.showNotification('Ikan menyambar umpan! Tekan [Spasi/E] untuk menarik! 🎣');
       }
     }
 
-    // Movement
+    // Movement calculation
     let vx = 0;
     let vy = 0;
     if (this.keys['w'] || this.keys['arrowup']) vy -= 1;
@@ -952,7 +1206,7 @@ class Game {
 
       if (pdist > 18) {
         this.pet.isMoving = true;
-        const petSpeed = (this.player.speed + 10) * delta;
+        const petSpeed = (this.player.speed + 12) * delta;
         this.pet.x += (pdx / pdist) * petSpeed;
         this.pet.y += (pdy / pdist) * petSpeed;
         this.pet.dir = pdx > 0 ? 'right' : 'left';
@@ -976,7 +1230,7 @@ class Game {
       if (this.partner.emoteTimer <= 0) this.partner.emote = null;
     }
 
-    // Camera follow
+    // Smooth Camera Follow
     const targetCamX = this.player.x + 16 - (this.canvas.width / this.camera.scale) / 2;
     const targetCamY = this.player.y + 16 - (this.canvas.height / this.camera.scale) / 2;
     this.camera.x += (targetCamX - this.camera.x) * 0.12;
@@ -992,12 +1246,11 @@ class Game {
     this.camera.x = Math.max(0, Math.min(maxW - this.canvas.width / this.camera.scale, this.camera.x));
     this.camera.y = Math.max(0, Math.min(maxH - this.canvas.height / this.camera.scale, this.camera.y));
 
-    // Particles & Floating Damage
+    // Floating Combat & Reward Numbers
     for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
       const ft = this.floatingTexts[i];
       ft.y += ft.vy * delta;
       ft.life -= delta;
-      ft.alpha = ft.life;
       if (ft.life <= 0) this.floatingTexts.splice(i, 1);
     }
 
@@ -1014,7 +1267,22 @@ class Game {
       if (n.time <= 0) this.notifications.splice(i, 1);
     }
 
+    // Fireflies update at night
+    const timeInfo = this.farm.getTimeOfDay();
+    if (timeInfo.phase === 'night' || timeInfo.phase === 'sunset') {
+      this.fireflies.forEach(f => {
+        f.x += f.vx * delta;
+        f.y += f.vy * delta;
+        f.phase += delta * 2;
+        if (f.x < 0) f.x = 48 * 16;
+        if (f.x > 48 * 16) f.x = 0;
+        if (f.y < 0) f.y = 32 * 16;
+        if (f.y > 32 * 16) f.y = 0;
+      });
+    }
+
     this.updateActivePrompt();
+    this.updateHUD();
   }
 
   // --- Rendering ---
@@ -1041,7 +1309,7 @@ class Game {
     this.renderUIOverlays();
   }
 
-  // --- 1. OUTDOOR VILLAGE ---
+  // --- 1. OUTDOOR VILLAGE & FARM ---
   renderOutdoorVillage() {
     const imgGrass = this.assets.grass;
     const imgPath = this.assets.path;
@@ -1049,10 +1317,9 @@ class Game {
     const imgFarmland = this.assets.farmland;
     const imgFences = this.assets.fences;
     const imgChest = this.assets.chest;
-    const imgBridge = this.assets.bridge;
-    const imgHouse = this.assets.house;
     const imgPlants = this.assets.plants;
 
+    // Base Terrain Tiles
     for (let y = 0; y < this.farm.rows; y++) {
       for (let x = 0; x < this.farm.cols; x++) {
         const px = x * 16;
@@ -1072,10 +1339,33 @@ class Game {
       }
     }
 
-    // Bridge over lake
-    if (imgBridge) this.ctx.drawImage(imgBridge, 0, 0, 48, 24, 36 * 16, 20 * 16 - 4, 48, 24);
+    // Scenic Water Decorations in Lake (Water lilies, Reeds, Rocks, Boat)
+    if (this.assets.water_lilies) {
+      this.ctx.drawImage(this.assets.water_lilies, 38 * 16, 14 * 16);
+      this.ctx.drawImage(this.assets.water_lilies, 42 * 16, 22 * 16);
+      this.ctx.drawImage(this.assets.water_lilies, 37 * 16, 26 * 16);
+    }
+    if (this.assets.water_reeds) {
+      this.ctx.drawImage(this.assets.water_reeds, 36 * 16, 12 * 16);
+      this.ctx.drawImage(this.assets.water_reeds, 44 * 16, 13 * 16);
+      this.ctx.drawImage(this.assets.water_reeds, 45 * 16, 27 * 16);
+    }
+    if (this.assets.water_rocks) {
+      this.ctx.drawImage(this.assets.water_rocks, 40 * 16, 17 * 16);
+      this.ctx.drawImage(this.assets.water_rocks, 43 * 16, 25 * 16);
+    }
 
-    // Objects
+    // Beautiful Wooden Pier & Bridge
+    if (this.assets.bridge_fancy) {
+      this.ctx.drawImage(this.assets.bridge_fancy, 35 * 16, 19 * 16, 112, 48);
+    }
+
+    // Wooden Boat Moored at Lake Dock
+    if (this.assets.boat) {
+      this.ctx.drawImage(this.assets.boat, 41 * 16, 15 * 16, 48, 32);
+    }
+
+    // Grid Objects (Fences, Chest, Sell Bin, Well, Crops)
     for (let y = 0; y < this.farm.rows; y++) {
       for (let x = 0; x < this.farm.cols; x++) {
         const tile = this.farm.grid[y][x];
@@ -1093,11 +1383,8 @@ class Game {
           this.ctx.font = '8px sans-serif';
           this.ctx.fillText('🪙', px + 2, py + 12);
         }
-        if (tile.type === 'well') {
-          this.ctx.fillStyle = '#7f8c8d';
-          this.ctx.fillRect(px + 2, py + 2, 12, 12);
-          this.ctx.fillStyle = '#3498db';
-          this.ctx.fillRect(px + 4, py + 4, 8, 8);
+        if (tile.type === 'well' && this.assets.well) {
+          this.ctx.drawImage(this.assets.well, px - 8, py - 16, 32, 32);
         }
 
         // Crops
@@ -1116,31 +1403,57 @@ class Game {
       }
     }
 
-    // Buildings with Signboards
-    if (imgHouse) {
-      // 1. MC House
-      this.ctx.drawImage(imgHouse, 20 * 16, 3 * 16 - 16, 96, 112);
+    // Pasture Atmosphere: Hay Bales & Feeding Trough
+    if (this.assets.hay_bale) {
+      this.ctx.drawImage(this.assets.hay_bale, 3 * 16, 4 * 16, 32, 16);
+      this.ctx.drawImage(this.assets.hay_bale, 10 * 16, 4 * 16, 32, 16);
+    }
+    if (this.assets.trough) {
+      this.ctx.drawImage(this.assets.trough, 7 * 16, 4 * 16, 32, 16);
+    }
+    if (this.assets.scarecrow) {
+      this.ctx.drawImage(this.assets.scarecrow, 21 * 16, 11 * 16 - 8, 32, 32);
+    }
+    if (this.assets.bush_flowers) {
+      this.ctx.drawImage(this.assets.bush_flowers, 13 * 16, 9 * 16 - 8, 32, 32);
+      this.ctx.drawImage(this.assets.bush_flowers, 33 * 16, 9 * 16 - 8, 32, 32);
+      this.ctx.drawImage(this.assets.bush_flowers, 13 * 16, 18 * 16 - 8, 32, 32);
+      this.ctx.drawImage(this.assets.bush_flowers, 33 * 16, 18 * 16 - 8, 32, 32);
+    }
+
+    // DISTINCT NPC & MC BUILDINGS
+    // 1. MC House (House.png)
+    if (this.assets.house) {
+      this.ctx.drawImage(this.assets.house, 20 * 16, 3 * 16 - 16, 96, 112);
       this.renderSignboard(23 * 16, 8 * 16 + 18, '🏡 Rumah Utama (MC)');
+    }
 
-      // 2. Toko Pak Budi
-      this.ctx.drawImage(imgHouse, 6 * 16, 20 * 16 - 20, 80, 96);
+    // 2. Toko Pak Budi (Cottage style)
+    const budiHouse = this.assets.house_cottage || this.assets.house;
+    if (budiHouse) {
+      this.ctx.drawImage(budiHouse, 6 * 16 - 8, 20 * 16 - 28, 96, 112);
       this.renderSignboard(8 * 16, 24 * 16 + 18, '🛒 Toko Tani Pak Budi');
+    }
 
-      // 3. Mak Siti Ranch House
-      this.ctx.drawImage(imgHouse, 15 * 16, 20 * 16 - 20, 80, 96);
+    // 3. Mak Siti Ranch House (Barn style)
+    const sitiHouse = this.assets.house_barn || this.assets.house;
+    if (sitiHouse) {
+      this.ctx.drawImage(sitiHouse, 15 * 16 - 8, 20 * 16 - 28, 96, 112);
       this.renderSignboard(17 * 16, 24 * 16 + 18, '🐮 Peternakan Mak Siti');
+    }
 
-      // 4. Pandai Besi Borin
-      this.ctx.drawImage(imgHouse, 24 * 16, 20 * 16 - 20, 80, 96);
+    // 4. Pandai Besi Borin (Blacksmith Forge)
+    if (this.assets.house) {
+      this.ctx.drawImage(this.assets.house, 24 * 16, 20 * 16 - 20, 80, 96);
       this.renderSignboard(26 * 16, 24 * 16 + 18, '⚔️ Toko Senjata Borin');
     }
 
     // Portal to Mystic Woods
-    this.ctx.fillStyle = 'rgba(155, 89, 182, 0.4)';
+    this.ctx.fillStyle = 'rgba(155, 89, 182, 0.45)';
     this.ctx.fillRect(44 * 16, 1 * 16, 48, 24);
     this.renderSignboard(45 * 16, 1 * 16 + 26, '🌲 Hutan Misterius ➔');
 
-    // Depth Sorted Entities
+    // Depth Sorted Entities (Trees, Resource Nodes, Animals, Bots, NPCs, Players)
     const entities = [];
 
     // Trees
@@ -1156,32 +1469,85 @@ class Game {
       });
     });
 
-    // NPCs
-    this.farm.npcs.forEach(npc => {
+    // Resource Nodes (Mineable Rocks & Choppable Logs/Stumps)
+    this.farm.resourceNodes.forEach(node => {
+      if (node.hp <= 0) return;
       entities.push({
-        y: npc.y * 16 + 16,
+        y: node.y * 16 + 16,
         render: () => {
-          const img = this.assets[npc.role === 'merchant' ? 'npc_merchant' : (npc.role === 'rancher' ? 'npc_rancher' : 'npc_fisher')];
-          if (img) this.ctx.drawImage(img, 0, 0, 32, 32, npc.x * 16 - 8, npc.y * 16 - 12, 32, 32);
-          this.renderNameTag(npc.x * 16 + 8, npc.y * 16 - 8, npc.name.split(' ')[0], '#34495e');
+          if (node.type === 'rock' && this.assets.rock_node) {
+            this.ctx.drawImage(this.assets.rock_node, node.x * 16 - 8, node.y * 16 - 8, 32, 32);
+          } else if (node.type === 'ore' && this.assets.rock_node) {
+            this.ctx.drawImage(this.assets.rock_node, node.x * 16 - 8, node.y * 16 - 8, 32, 32);
+            // Gold Ore Shimmer
+            this.ctx.fillStyle = '#f1c40f';
+            this.ctx.beginPath();
+            this.ctx.arc(node.x * 16 + 8, node.y * 16 + 8, 4, 0, Math.PI * 2);
+            this.ctx.fill();
+          } else if (node.type === 'log' && this.assets.log_wood) {
+            this.ctx.drawImage(this.assets.log_wood, node.x * 16 - 8, node.y * 16 - 8, 32, 32);
+          } else if (node.type === 'stump' && this.assets.stump) {
+            this.ctx.drawImage(this.assets.stump, node.x * 16 - 8, node.y * 16 - 8, 32, 32);
+          } else if (node.type === 'tree_chop' && this.assets.tree) {
+            this.ctx.drawImage(this.assets.tree, node.x * 16 - 24, node.y * 16 - 64, 64, 80);
+          }
+
+          // Durability bar if damaged
+          if (node.hp < node.maxHp) {
+            this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            this.ctx.fillRect(node.x * 16, node.y * 16 - 4, 16, 3);
+            this.ctx.fillStyle = '#2ed573';
+            this.ctx.fillRect(node.x * 16, node.y * 16 - 4, (node.hp / node.maxHp) * 16, 3);
+          }
         }
       });
     });
 
-    // Animals
+    // NPCs with Walking Animation and Flip!
+    this.farm.npcs.forEach(npc => {
+      entities.push({
+        y: npc.y + 16,
+        render: () => {
+          const img = this.assets[npc.role === 'merchant' ? 'npc_merchant' : (npc.role === 'rancher' ? 'npc_rancher' : (npc.role === 'fisher' ? 'npc_fisher' : 'player_boy'))];
+          if (img) {
+            const frame = Math.floor(npc.anim) % 6;
+            let row = 0;
+            if (npc.isMoving) {
+              row = npc.dir === 'down' ? 3 : (npc.dir === 'up' ? 5 : 4);
+            } else {
+              row = npc.dir === 'down' ? 0 : (npc.dir === 'up' ? 2 : 1);
+            }
+
+            this.ctx.save();
+            if (npc.dir === 'left') {
+              this.ctx.translate(npc.x + 24, npc.y - 12);
+              this.ctx.scale(-1, 1);
+              this.ctx.drawImage(img, frame * 32, row * 32, 32, 32, 0, 0, 32, 32);
+            } else {
+              this.ctx.drawImage(img, frame * 32, row * 32, 32, 32, npc.x - 8, npc.y - 12, 32, 32);
+            }
+            this.ctx.restore();
+          }
+          this.renderNameTag(npc.x + 8, npc.y - 14, npc.name.split(' ')[0], '#34495e');
+        }
+      });
+    });
+
+    // Animals & Bots
     this.animalManager.animals.forEach(a => {
       entities.push({
-        y: a.y + 16,
+        y: a.y,
         render: () => {
           const img = this.assets[a.type];
           if (img) {
+            const frame = Math.floor(a.anim) % 2;
             this.ctx.save();
             if (a.dir === 'left') {
-              this.ctx.translate(a.x + 32, a.y);
+              this.ctx.translate(a.x + 32, a.y - 16);
               this.ctx.scale(-1, 1);
-              this.ctx.drawImage(img, a.frame * 32, 0, 32, 32, 0, 0, 32, 32);
+              this.ctx.drawImage(img, frame * 32, 0, 32, 32, 0, 0, 32, 32);
             } else {
-              this.ctx.drawImage(img, a.frame * 32, 0, 32, 32, a.x, a.y, 32, 32);
+              this.ctx.drawImage(img, frame * 32, 0, 32, 32, a.x, a.y - 16, 32, 32);
             }
             this.ctx.restore();
             a.hearts.forEach(h => { this.ctx.font = '10px sans-serif'; this.ctx.fillText('❤️', h.x, h.y); });
@@ -1190,45 +1556,46 @@ class Game {
       });
     });
 
-    // Helper Bots
     this.botManager.bots.forEach(b => {
-      if (!b.isUnlocked()) return;
-      entities.push({
-        y: b.y + 24,
-        render: () => {
-          const img = b.type === 'boni' ? this.assets.bot_boni : this.assets.bot_slime;
-          if (img) {
-            this.ctx.save();
-            let row = b.isMoving ? (b.dir === 'down' ? 3 : (b.dir === 'up' ? 5 : 4)) : (b.dir === 'down' ? 0 : (b.dir === 'up' ? 2 : 1));
-            if (b.type === 'slime') row = b.isMoving ? 1 : 0;
-            if (b.dir === 'left') {
-              this.ctx.translate(b.x + 32, b.y);
-              this.ctx.scale(-1, 1);
-              this.ctx.drawImage(img, b.frame * 32, row * 32, 32, 32, 0, 0, 32, 32);
-            } else {
-              this.ctx.drawImage(img, b.frame * 32, row * 32, 32, 32, b.x, b.y, 32, 32);
+      if (b.hired) {
+        entities.push({
+          y: b.y,
+          render: () => {
+            const img = this.assets[b.type === 'boni' ? 'bot_boni' : 'bot_slime'];
+            if (img) {
+              const frame = Math.floor(b.anim) % 4;
+              let row = b.dir === 'down' ? 0 : (b.dir === 'up' ? 2 : 1);
+              this.ctx.save();
+              if (b.dir === 'left') {
+                this.ctx.translate(b.x + 32, b.y - 16);
+                this.ctx.scale(-1, 1);
+                this.ctx.drawImage(img, frame * 32, row * 32, 32, 32, 0, 0, 32, 32);
+              } else {
+                this.ctx.drawImage(img, frame * 32, row * 32, 32, 32, b.x, b.y - 16, 32, 32);
+              }
+              this.ctx.restore();
             }
-            this.ctx.restore();
             if (b.bubbleText) this.renderSpeechBubble(b.x + 16, b.y - 8, b.bubbleText, '#2ed573');
           }
-        }
-      });
+        });
+      }
     });
 
-    // Pet Companion Follower
+    // Pet Follower
     if (this.farm.activePet) {
       entities.push({
         y: this.pet.y + 16,
         render: () => {
-          const pImg = this.assets[this.farm.activePet.type] || this.assets.pet_chick;
-          if (pImg) {
+          const img = this.assets[this.farm.activePet.type];
+          if (img) {
+            const frame = Math.floor(this.pet.anim) % 2;
             this.ctx.save();
             if (this.pet.dir === 'left') {
               this.ctx.translate(this.pet.x + 24, this.pet.y);
               this.ctx.scale(-1, 1);
-              this.ctx.drawImage(pImg, Math.floor(this.pet.anim) * 16, 0, 16, 16, 0, 0, 16, 16);
+              this.ctx.drawImage(img, frame * 24, 0, 24, 24, 0, 0, 24, 24);
             } else {
-              this.ctx.drawImage(pImg, Math.floor(this.pet.anim) * 16, 0, 16, 16, this.pet.x, this.pet.y, 16, 16);
+              this.ctx.drawImage(img, frame * 24, 0, 24, 24, this.pet.x, this.pet.y, 24, 24);
             }
             this.ctx.restore();
           }
@@ -1236,13 +1603,12 @@ class Game {
       });
     }
 
-    // Local Player
+    // Players
     entities.push({
       y: this.player.y + 24,
       render: () => this.renderCharacter(this.player, true)
     });
 
-    // Partner Player
     if (this.partner.active && this.partner.location === 'farm') {
       entities.push({
         y: this.partner.y + 24,
@@ -1256,8 +1622,11 @@ class Game {
     this.renderAtmosphere();
   }
 
-  // --- 2. MC HOUSE (EMPTY BY DEFAULT, PLAYER PLACES REAL PIXEL ART FURNITURE!) ---
+  // --- 2. MC HOUSE (WOODEN PLANK FLOOR & EMPTY SO PLAYERS DECORATE!) ---
   renderMCHouse() {
+    const imgFloor = this.assets.floor_wood;
+    const imgWall = this.assets.wall_wood;
+
     for (let y = 0; y < this.farm.houseMCHeight; y++) {
       for (let x = 0; x < this.farm.houseMCWidth; x++) {
         const px = x * 16;
@@ -1265,15 +1634,19 @@ class Game {
         const cell = this.farm.houseMC[y][x];
 
         if (cell.type === 'indoor_wall') {
-          this.ctx.fillStyle = '#5c3a21';
-          this.ctx.fillRect(px, py, 16, 16);
-          this.ctx.fillStyle = '#8e5431';
-          this.ctx.fillRect(px + 1, py + 1, 14, 14);
+          if (imgWall) {
+            this.ctx.drawImage(imgWall, px, py, 16, 16);
+          } else {
+            this.ctx.fillStyle = '#6d4c41';
+            this.ctx.fillRect(px, py, 16, 16);
+          }
         } else {
-          this.ctx.fillStyle = '#e5b982';
-          this.ctx.fillRect(px, py, 16, 16);
-          this.ctx.fillStyle = '#d4a366';
-          this.ctx.fillRect(px + 1, py + 1, 14, 14);
+          if (imgFloor) {
+            this.ctx.drawImage(imgFloor, px, py, 16, 16);
+          } else {
+            this.ctx.fillStyle = '#d7ccc8';
+            this.ctx.fillRect(px, py, 16, 16);
+          }
         }
       }
     }
@@ -1300,6 +1673,9 @@ class Game {
   // --- 3. NPC HOUSES (ALREADY FULLY FURNISHED!) ---
   renderNPCHouse(loc) {
     const room = loc === 'house_budi' ? this.farm.houseBudi : (loc === 'house_siti' ? this.farm.houseSiti : this.farm.houseBlacksmith);
+    const imgFloor = this.assets.floor_wood;
+    const imgWall = this.assets.wall_wood;
+
     for (let y = 0; y < room.h; y++) {
       for (let x = 0; x < room.w; x++) {
         const px = x * 16;
@@ -1307,15 +1683,11 @@ class Game {
         const cell = room.grid[y][x];
 
         if (cell.type === 'indoor_wall') {
-          this.ctx.fillStyle = '#5c3a21';
-          this.ctx.fillRect(px, py, 16, 16);
-          this.ctx.fillStyle = '#8e5431';
-          this.ctx.fillRect(px + 1, py + 1, 14, 14);
+          if (imgWall) this.ctx.drawImage(imgWall, px, py, 16, 16);
+          else { this.ctx.fillStyle = '#6d4c41'; this.ctx.fillRect(px, py, 16, 16); }
         } else {
-          this.ctx.fillStyle = '#e5b982';
-          this.ctx.fillRect(px, py, 16, 16);
-          this.ctx.fillStyle = '#d4a366';
-          this.ctx.fillRect(px + 1, py + 1, 14, 14);
+          if (imgFloor) this.ctx.drawImage(imgFloor, px, py, 16, 16);
+          else { this.ctx.fillStyle = '#d7ccc8'; this.ctx.fillRect(px, py, 16, 16); }
         }
       }
     }
@@ -1338,33 +1710,30 @@ class Game {
     }
   }
 
-  // --- 4. HUTAN MISTERIUS (COMBAT ZONE WITH SLIMES & SKELETONS) ---
+  // --- 4. MYSTIC WOODS (AGGRESSIVE MONSTER COMBAT) ---
   renderMysticWoods() {
-    const imgGrass = this.assets.mystic_grass || this.assets.grass;
+    const imgMystic = this.assets.mystic_grass || this.assets.grass;
 
-    for (let y = 0; y < this.farm.woodsH; y++) {
-      for (let x = 0; x < this.farm.woodsW; x++) {
+    for (let y = 0; y < this.farm.woodsRows; y++) {
+      for (let x = 0; x < this.farm.woodsCols; x++) {
         const px = x * 16;
         const py = y * 16;
-        const cell = this.farm.woodsGrid[y][x];
+        const cell = this.farm.mysticWoodsGrid[y][x];
 
-        if (imgGrass) this.ctx.drawImage(imgGrass, 0, 0, 16, 16, px, py, 16, 16);
-        if (cell.type === 'tree') {
-          if (this.assets.tree) this.ctx.drawImage(this.assets.tree, px - 16, py - 48, 48, 64);
-        }
-        if (cell.type === 'ruin_stone') {
-          this.ctx.fillStyle = '#7f8c8d';
-          this.ctx.fillRect(px + 2, py + 2, 12, 12);
+        if (imgMystic) this.ctx.drawImage(imgMystic, px, py, 16, 16);
+
+        if (cell.type === 'woods_tree' && this.assets.tree) {
+          this.ctx.drawImage(this.assets.tree, px - 16, py - 48, 48, 64);
         }
         if (cell.type === 'portal_village') {
-          this.ctx.fillStyle = '#2ecc71';
+          this.ctx.fillStyle = 'rgba(46, 204, 113, 0.45)';
           this.ctx.fillRect(px, py, 16, 16);
           this.renderSignboard(px + 8, py + 22, '🏡 Kembali ke Desa');
         }
       }
     }
 
-    // Monsters in woods
+    // Monsters in woods (Slimes & Skeletons)
     this.farm.monsters.forEach(m => {
       const img = m.type === 'slime' ? this.assets.slime_monster : this.assets.skeleton_monster;
       if (img) {
@@ -1381,7 +1750,7 @@ class Game {
         this.ctx.restore();
 
         // Monster HP Bar
-        this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        this.ctx.fillStyle = 'rgba(0,0,0,0.55)';
         this.ctx.fillRect(m.x + 4, m.y - 6, 24, 4);
         this.ctx.fillStyle = '#e74c3c';
         this.ctx.fillRect(m.x + 4, m.y - 6, Math.max(0, (m.hp / m.maxHp) * 24), 4);
@@ -1394,6 +1763,7 @@ class Game {
     }
   }
 
+  // --- CHARACTER SPRITE RENDERING (CLAMPED FRAME FIX: NO MORE DISAPPEARING!) ---
   renderCharacter(char, isLocal) {
     const img = char.role === 'girl' ? this.assets.player_girl : this.assets.player_boy;
     if (!img) return;
@@ -1404,7 +1774,9 @@ class Game {
     else if (char.isMoving) row = char.dir === 'down' ? 3 : (char.dir === 'up' ? 5 : 4);
     else row = char.dir === 'down' ? 0 : (char.dir === 'up' ? 2 : 1);
 
-    const frame = char.animFrame || 0;
+    // CRITICAL FIX: Attack animation only has 4 frames (0,1,2,3). Clamping avoids invisible blank sprites!
+    const maxFrames = char.currentAction === 'action' ? 4 : 6;
+    const frame = Math.floor(char.animFrame % maxFrames);
     const flip = char.dir === 'left';
 
     if (flip) {
@@ -1416,7 +1788,7 @@ class Game {
     }
     this.ctx.restore();
 
-    // Sword slash effect
+    // Sword slash visual effect
     if (char.slashTimer > 0) {
       this.ctx.strokeStyle = '#f1c40f';
       this.ctx.lineWidth = 2.5;
@@ -1425,12 +1797,24 @@ class Game {
       this.ctx.stroke();
     }
 
-    // Name tag
+    // Name tag & Heart Status
     this.renderNameTag(char.x + 16, char.y + 3, `${char.name} ${char.role === 'girl' ? '🌸' : '🌱'}`, isLocal ? 'rgba(0,0,0,0.55)' : 'rgba(235,77,75,0.75)');
+
+    // In-world floating prompt indicator above player
+    if (isLocal && this.activePrompt) {
+      this.ctx.save();
+      this.ctx.font = 'bold 8px sans-serif';
+      this.ctx.fillStyle = '#fffa65';
+      this.ctx.strokeStyle = '#222f3e';
+      this.ctx.lineWidth = 2;
+      this.ctx.strokeText('[E]', char.x + 16, char.y - 12);
+      this.ctx.fillText('[E]', char.x + 16, char.y - 12);
+      this.ctx.restore();
+    }
 
     if (char.emote) {
       this.ctx.font = '16px sans-serif';
-      this.ctx.fillText(char.emote, char.x + 16, char.y - 12);
+      this.ctx.fillText(char.emote, char.x + 16, char.y - 14);
     }
   }
 
@@ -1439,10 +1823,12 @@ class Game {
     this.ctx.font = 'bold 9px sans-serif';
     this.ctx.textAlign = 'center';
     const tw = this.ctx.measureText(text).width;
+
     this.ctx.fillStyle = bg;
     this.ctx.beginPath();
-    this.ctx.roundRect(x - tw / 2 - 4, y - 9, tw + 8, 12, 4);
+    this.ctx.roundRect(x - tw / 2 - 4, y - 9, tw + 8, 12, 6);
     this.ctx.fill();
+
     this.ctx.fillStyle = '#ffffff';
     this.ctx.fillText(text, x, y);
     this.ctx.restore();
@@ -1450,32 +1836,36 @@ class Game {
 
   renderSignboard(x, y, text) {
     this.ctx.save();
-    this.ctx.font = 'bold 8px sans-serif';
+    this.ctx.font = 'bold 8.5px sans-serif';
     this.ctx.textAlign = 'center';
     const tw = this.ctx.measureText(text).width;
-    this.ctx.fillStyle = 'rgba(243, 156, 18, 0.9)';
+
+    this.ctx.fillStyle = 'rgba(44, 62, 80, 0.82)';
     this.ctx.beginPath();
-    this.ctx.roundRect(x - tw / 2 - 4, y - 8, tw + 8, 12, 4);
+    this.ctx.roundRect(x - tw / 2 - 4, y - 9, tw + 8, 12, 4);
     this.ctx.fill();
-    this.ctx.fillStyle = '#2c3e50';
+
+    this.ctx.fillStyle = '#f1c40f';
     this.ctx.fillText(text, x, y);
     this.ctx.restore();
   }
 
   renderSpeechBubble(x, y, text, color = '#2ed573') {
     this.ctx.save();
-    this.ctx.font = '8px sans-serif';
+    this.ctx.font = 'bold 8px sans-serif';
     this.ctx.textAlign = 'center';
     const tw = this.ctx.measureText(text).width;
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+
+    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
     this.ctx.strokeStyle = color;
     this.ctx.lineWidth = 1.5;
     this.ctx.beginPath();
-    this.ctx.roundRect(x - tw / 2 - 5, y - 14, tw + 10, 14, 4);
+    this.ctx.roundRect(x - tw / 2 - 4, y - 12, tw + 8, 14, 6);
     this.ctx.fill();
     this.ctx.stroke();
+
     this.ctx.fillStyle = '#2f3542';
-    this.ctx.fillText(text, x, y - 4);
+    this.ctx.fillText(text, x, y - 2);
     this.ctx.restore();
   }
 
@@ -1485,20 +1875,33 @@ class Game {
       this.ctx.fillStyle = timeInfo.ambient;
       this.ctx.fillRect(0, 0, this.farm.cols * 16, this.farm.rows * 16);
     }
+
+    // Romantic Night Fireflies
+    if (timeInfo.phase === 'night' || timeInfo.phase === 'sunset') {
+      this.ctx.save();
+      this.fireflies.forEach(f => {
+        const glow = 0.4 + 0.4 * Math.sin(f.phase);
+        this.ctx.fillStyle = `rgba(241, 196, 15, ${glow.toFixed(2)})`;
+        this.ctx.beginPath();
+        this.ctx.arc(f.x, f.y, 1.8, 0, Math.PI * 2);
+        this.ctx.fill();
+      });
+      this.ctx.restore();
+    }
   }
 
   renderUIOverlays() {
-    // 1. Contextual Action Prompt Banner
+    // 1. Contextual Action Prompt Banner - Positioned TOP CENTER so it NEVER overlaps the hotbar!
     if (this.activePrompt) {
       this.ctx.save();
       this.ctx.font = 'bold 13px sans-serif';
       const text = this.activePrompt.text;
       const tw = this.ctx.measureText(text).width;
       const cx = this.canvas.width / 2;
-      const cy = this.canvas.height - (window.innerWidth < 900 ? 175 : 85);
+      const cy = 76; // Clean position under top time/love HUD
 
-      this.ctx.fillStyle = 'rgba(255, 234, 167, 0.96)';
-      this.ctx.strokeStyle = '#ff7675';
+      this.ctx.fillStyle = 'rgba(255, 240, 243, 0.96)';
+      this.ctx.strokeStyle = '#ff4757';
       this.ctx.lineWidth = 2.5;
       this.ctx.beginPath();
       this.ctx.roundRect(cx - tw / 2 - 14, cy - 14, tw + 28, 28, 14);
@@ -1511,7 +1914,7 @@ class Game {
       this.ctx.restore();
     }
 
-    // 2. Floating Damage / Combat Numbers
+    // 2. Floating Damage / Numbers
     this.floatingTexts.forEach(ft => {
       this.ctx.save();
       this.ctx.font = 'bold 13px sans-serif';
@@ -1520,164 +1923,118 @@ class Game {
       this.ctx.restore();
     });
 
-    // 3. Screen notifications
+    // 3. Screen Flash Red (Damage) / Green (Heal)
+    if (this.screenFlashRed > 0) {
+      this.ctx.save();
+      this.ctx.fillStyle = `rgba(231, 76, 60, ${Math.min(0.4, this.screenFlashRed).toFixed(2)})`;
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      this.ctx.restore();
+    }
+    if (this.screenFlashGreen > 0) {
+      this.ctx.save();
+      this.ctx.fillStyle = `rgba(46, 213, 115, ${Math.min(0.3, this.screenFlashGreen).toFixed(2)})`;
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      this.ctx.restore();
+    }
+
+    // 4. Screen Notifications
     let ny = this.canvas.height - 120;
     this.notifications.forEach(n => {
       this.ctx.save();
       this.ctx.font = '12px sans-serif';
       const tw = this.ctx.measureText(n.text).width;
-      this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      this.ctx.fillStyle = 'rgba(0, 0, 0, 0.72)';
       this.ctx.beginPath();
-      this.ctx.roundRect(16, ny - 16, tw + 16, 22, 6);
+      this.ctx.roundRect(16, ny - 14, tw + 16, 22, 6);
       this.ctx.fill();
-      this.ctx.fillStyle = '#ffffff';
+      this.ctx.fillStyle = '#fff';
       this.ctx.fillText(n.text, 24, ny);
       this.ctx.restore();
       ny -= 26;
     });
   }
 
-  onPeerConnected(isHost) {
-    this.partner.active = true;
-    this.showNotification(`Pasangan (${this.partner.name}) berhasil terhubung! Selamat mabar! 🎉❤️`);
-    this.updateHUD();
-  }
-
-  onPeerDisconnected() {
-    this.partner.active = false;
-    this.showNotification('Pasangan terputus. Menunggu koneksi kembali... 🟡');
-    this.updateHUD();
-  }
-
-  updateHUD() {
-    const elCoins = document.getElementById('hudCoins');
-    if (elCoins) elCoins.textContent = `${this.farm.coins}`;
-
-    const elLove = document.getElementById('hudLove');
-    const elLoveTitle = document.getElementById('hudLoveTitle');
-    if (elLove) elLove.textContent = `${this.farm.lovePoints} ❤️`;
-    if (elLoveTitle) elLoveTitle.textContent = `${this.farm.getLoveTitle()}`;
-
-    const elTime = document.getElementById('hudTime');
-    const timeInfo = this.farm.getTimeOfDay();
-    const hours = Math.floor(this.farm.timeMinutes / 60).toString().padStart(2, '0');
-    const mins = Math.floor(this.farm.timeMinutes % 60).toString().padStart(2, '0');
-    if (elTime) elTime.textContent = `Hari ${this.farm.dayCount} - ${hours}:${mins} (${timeInfo.label})`;
-
-    // Check hotbar availability
-    const slotFish = document.querySelector('.hotbar-slot[data-tool="fishing_rod"]');
-    if (slotFish) slotFish.style.opacity = this.farm.unlockedTools.fishing_rod ? '1' : '0.4';
-
-    const slotSword = document.querySelector('.hotbar-slot[data-tool="sword_iron"]');
-    if (slotSword) slotSword.style.opacity = (this.farm.unlockedTools.sword_iron || this.farm.unlockedTools.sword_gold) ? '1' : '0.4';
-  }
-
   setupHUDButtons() {
     document.getElementById('btnToggleSound')?.addEventListener('click', () => {
-      window.soundSystem.init();
-      const muted = window.soundSystem.toggleMute();
-      document.getElementById('btnToggleSound').textContent = muted ? '🔇' : '🔊';
+      if (window.soundSystem) {
+        const on = window.soundSystem.toggleSound();
+        document.getElementById('btnToggleSound').textContent = on ? '🔊' : '🔇';
+      }
     });
 
     document.getElementById('btnToggleMusic')?.addEventListener('click', () => {
-      window.soundSystem.init();
-      const on = window.soundSystem.toggleBGM();
-      document.getElementById('btnToggleMusic').textContent = on ? '🎵' : '🔇';
-    });
-
-    document.getElementById('btnOpenBots')?.addEventListener('click', () => {
-      document.getElementById('modalBots').classList.remove('hidden');
+      if (window.soundSystem) {
+        const on = window.soundSystem.toggleMusic();
+        document.getElementById('btnToggleMusic').textContent = on ? '🎵' : '💤';
+      }
     });
 
     document.getElementById('btnOpenChest')?.addEventListener('click', () => this.openChestModal());
-    document.getElementById('btnOpenSave')?.addEventListener('click', () => {
-      document.getElementById('modalSave').classList.remove('hidden');
+    document.getElementById('btnOpenBots')?.addEventListener('click', () => {
+      document.getElementById('modalBots')?.classList.remove('hidden');
     });
+    document.getElementById('btnOpenSave')?.addEventListener('click', () => {
+      document.getElementById('modalSave')?.classList.remove('hidden');
+    });
+    document.getElementById('btnTakePic')?.addEventListener('click', () => this.takeRomanticPhoto());
 
-    document.getElementById('btnTakePic')?.addEventListener('click', () => this.capturePolaroid());
-
+    // Chat form submit
     const chatForm = document.getElementById('chatForm');
     const chatInput = document.getElementById('chatInput');
-    if (chatForm && chatInput) {
-      chatForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const text = chatInput.value.trim();
-        if (text) {
-          this.receiveChatMessage(this.player.name, text);
-          this.network.send({ type: 'action_chat', sender: this.player.name, text });
-          chatInput.value = '';
-          chatInput.blur();
-        }
-      });
-    }
+    chatForm?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = chatInput.value.trim();
+      if (!text) return;
+      chatInput.value = '';
+      this.network.sendChat(text);
+      this.appendChat(this.player.name, text, true);
+    });
   }
 
-  receiveChatMessage(sender, text) {
-    const chatLogs = document.getElementById('chatLogs');
-    if (chatLogs) {
-      const p = document.createElement('div');
-      p.className = 'chat-bubble';
-      p.innerHTML = `<strong>${sender}:</strong> ${text}`;
-      chatLogs.appendChild(p);
-      chatLogs.scrollTop = chatLogs.scrollHeight;
-    }
+  appendChat(sender, message, isSelf = false) {
+    const logs = document.getElementById('chatLogs');
+    if (!logs) return;
+    const bubble = document.createElement('div');
+    bubble.className = `chat-bubble ${isSelf ? 'self' : 'partner'}`;
+    bubble.innerHTML = `<strong>${sender}:</strong> ${message}`;
+    logs.appendChild(bubble);
+    logs.scrollTop = logs.scrollHeight;
   }
 
-  openChestModal() {
-    const modal = document.getElementById('modalChest');
-    const seedsList = document.getElementById('chestSeedsList');
-    const produceList = document.getElementById('chestProduceList');
-
-    if (seedsList) {
-      seedsList.innerHTML = Object.entries(this.farm.chest.seeds).map(([id, count]) => {
-        const def = CROP_DEFINITIONS[id] || { name: id, icon: '🌱' };
-        return `<div class="chest-item"><span>${def.icon} ${def.name}</span><strong>x${count}</strong></div>`;
-      }).join('');
-    }
-
-    if (produceList) {
-      produceList.innerHTML = Object.entries(this.farm.chest.produce).map(([id, count]) => {
-        let icon = '🧺';
-        if (id === 'fish') icon = '🐟';
-        if (id === 'milk') icon = '🥛';
-        if (id === 'egg') icon = '🥚';
-        if (id === 'wool') icon = '🧶';
-        if (id === 'monster_gel') icon = '🟢';
-        const name = CROP_DEFINITIONS[id] ? CROP_DEFINITIONS[id].name : id.toUpperCase();
-        return `<div class="chest-item"><span>${icon} ${name}</span><strong>x${count}</strong></div>`;
-      }).join('');
-    }
-
-    modal.classList.remove('hidden');
-  }
-
-  capturePolaroid() {
+  takeRomanticPhoto() {
     const pCanvas = document.createElement('canvas');
     pCanvas.width = 480;
     pCanvas.height = 580;
     const pCtx = pCanvas.getContext('2d');
 
-    pCtx.fillStyle = '#ffffff';
+    pCtx.fillStyle = '#ffeff2';
     pCtx.fillRect(0, 0, 480, 580);
-    pCtx.drawImage(this.canvas, 20, 20, 440, 440);
 
-    pCtx.fillStyle = '#2c3e50';
-    pCtx.font = 'bold 22px cursive, sans-serif';
+    const snapW = 440;
+    const snapH = 440;
+    pCtx.drawImage(this.canvas, this.canvas.width / 2 - snapW / 2, this.canvas.height / 2 - snapH / 2, snapW, snapH, 20, 20, snapW, snapH);
+
+    pCtx.strokeStyle = '#ff4757';
+    pCtx.lineWidth = 6;
+    pCtx.strokeRect(20, 20, snapW, snapH);
+
+    pCtx.fillStyle = '#ff4757';
+    pCtx.font = 'bold 20px sans-serif';
     pCtx.textAlign = 'center';
     const coupleText = `${this.player.name} ❤️ ${this.partner.active ? this.partner.name : 'Pacar Tercinta'}`;
     pCtx.fillText(coupleText, 240, 495);
 
-    pCtx.font = '15px sans-serif';
-    pCtx.fillStyle = '#7f8c8d';
+    pCtx.fillStyle = '#747d8c';
+    pCtx.font = '12px sans-serif';
     const dateStr = new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
     pCtx.fillText(`Kebun Cinta Kita • Hari ke-${this.farm.dayCount} • ${dateStr}`, 240, 530);
 
+    const dataUrl = pCanvas.toDataURL('image/png');
     const a = document.createElement('a');
-    a.href = pCanvas.toDataURL('image/png');
-    a.download = `foto-berdua-${this.player.name}-${this.partner.name}.png`;
+    a.href = dataUrl;
+    a.download = `foto-kebun-cinta-${this.player.name}-${Date.now()}.png`;
     a.click();
-
-    this.showNotification('📷 Foto Polaroid tersimpan ke galeri perangkatmu! ❤️✨');
+    this.showNotification('Foto kenangan berdua berhasil disimpan ke galeri! 📷💖');
   }
 }
 

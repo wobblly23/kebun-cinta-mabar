@@ -1,11 +1,11 @@
-// js/farm.js - Complete World, Multi-Location, Custom Furniture Placement, and Combat Mechanics
+// js/farm.js - Complete Multi-Location World, Mining, Woodcutting, Monster Aggro, and Health System
 
 const CROP_DEFINITIONS = {
-  carrot: { id: 'carrot', name: 'Wortel Manis', icon: '🥕', plantRow: 0, growTime: 14, sellPrice: 12, seedPrice: 5, loveReward: 4 },
-  potato: { id: 'potato', name: 'Kentang Emas', icon: '🥔', plantRow: 1, growTime: 22, sellPrice: 22, seedPrice: 8, loveReward: 6 },
-  tomato: { id: 'tomato', name: 'Tomat Segar', icon: '🍅', plantRow: 2, growTime: 32, sellPrice: 38, seedPrice: 15, loveReward: 10 },
-  strawberry: { id: 'strawberry', name: 'Stroberi Cinta', icon: '🍓', plantRow: 3, growTime: 44, sellPrice: 65, seedPrice: 25, loveReward: 18 },
-  melon: { id: 'melon', name: 'Semangka Kebun', icon: '🍉', plantRow: 4, growTime: 58, sellPrice: 110, seedPrice: 40, loveReward: 30 }
+  carrot: { id: 'carrot', name: 'Wortel Manis', icon: '🥕', plantRow: 0, growTime: 12, sellPrice: 12, seedPrice: 5, healHp: 20, loveReward: 4 },
+  potato: { id: 'potato', name: 'Kentang Emas', icon: '🥔', plantRow: 1, growTime: 18, sellPrice: 22, seedPrice: 8, healHp: 25, loveReward: 6 },
+  tomato: { id: 'tomato', name: 'Tomat Segar', icon: '🍅', plantRow: 2, growTime: 26, sellPrice: 38, seedPrice: 15, healHp: 35, loveReward: 10 },
+  strawberry: { id: 'strawberry', name: 'Stroberi Cinta', icon: '🍓', plantRow: 3, growTime: 36, sellPrice: 65, seedPrice: 25, healHp: 50, loveReward: 18 },
+  melon: { id: 'melon', name: 'Semangka Kebun', icon: '🍉', plantRow: 4, growTime: 48, sellPrice: 110, seedPrice: 40, healHp: 80, loveReward: 30 }
 };
 
 const FURNITURE_DEFINITIONS = {
@@ -31,70 +31,164 @@ class FarmManager {
     this.rows = rows;
     this.tileSize = tileSize;
 
-    // Current location: 'farm', 'house_mc', 'house_budi', 'house_siti', 'house_blacksmith', 'woods'
-    this.currentLocation = 'farm';
+    this.currentLocation = 'farm'; // 'farm' | 'house_mc' | 'house_budi' | 'house_siti' | 'house_blacksmith' | 'woods'
 
-    // Grids for each location
     this.grid = [];
     this.houseMC = [];
-    this.houseBudi = [];
-    this.houseSiti = [];
-    this.houseBlacksmith = [];
-    this.woodsGrid = [];
+    this.houseBudi = null;
+    this.houseSiti = null;
+    this.houseBlacksmith = null;
+    this.mysticWoodsGrid = [];
 
-    // Economy & Progression
+    // Economy & Love & HP
     this.coins = 70;
     this.lovePoints = 0;
     this.loveLevel = 1;
+    this.playerHp = 100;
+    this.playerMaxHp = 100;
 
-    // Tools owned (Swords, fishing rod must be purchased!)
+    // Tools & Resources
     this.unlockedTools = {
       hoe: true,
       water: true,
+      axe: true,       // Woodchopping starter tool
+      pickaxe: true,   // Mining starter tool
       fishing_rod: false,
       sword_iron: false,
       sword_gold: false,
       flower: true
     };
 
-    // Helper bots unlocked
-    this.unlockedBots = {
-      slime: false,
-      boni: false,
-      chicky: false
-    };
-
-    // Owned farm animals
+    this.unlockedBots = { slime: false, boni: false, chicky: false };
     this.ownedAnimals = [];
+    this.activePet = null;
 
-    // Active Pet companion that follows player!
-    this.activePet = null; // { type: 'pet_chick' | 'pet_piggy' | 'pet_bunny', name: 'Pipit' }
-
-    // Owned Furniture inventory (to place in MC house!)
-    this.ownedFurniture = []; // Starts EMPTY so MC can design and place it!
-    this.placedFurnitureMC = []; // [{ id, x, y }]
+    // MC House Furniture (Starts EMPTY so players decorate themselves)
+    this.ownedFurniture = [];
+    this.placedFurnitureMC = [];
 
     // Shared storage chest
     this.chest = {
-      seeds: { carrot: 4, potato: 0, tomato: 0, strawberry: 0, melon: 0 },
-      produce: { carrot: 0, potato: 0, tomato: 0, strawberry: 0, melon: 0, fish: 0, milk: 0, egg: 0, wool: 0, monster_gel: 0 }
+      seeds: { carrot: 4, potato: 2, tomato: 0, strawberry: 0, melon: 0 },
+      produce: {
+        carrot: 0, potato: 0, tomato: 0, strawberry: 0, melon: 0,
+        wood: 0, stone: 0, ore: 0, fish: 0, milk: 0, egg: 0, wool: 0, monster_gel: 0
+      }
     };
+
+    // World Resource Nodes (Mineable Rocks & Choppable Trees/Logs)
+    this.resourceNodes = [];
 
     // Monsters in Mystic Woods
     this.monsters = [];
 
     // Day & Night Cycle
-    this.timeMinutes = 480;
+    this.timeMinutes = 480; // 08:00 morning
     this.dayCount = 1;
-    this.timeSpeed = 2.5;
+    this.timeSpeed = 2.0;
 
-    // NPCs with buildings
+    // NPCs with Active Movement & Wander AI
     this.npcs = [
-      { id: 'pak_budi', name: 'Pak Budi (Toko Tani & Perabot)', role: 'merchant', x: 8, y: 25, houseLocation: 'house_budi', doorX: 8, doorY: 24, portrait: 'assets/npcs/npc_merchant.png', dialog: 'Halo! Selamat datang di Toko Tani. Mau beli bibit unggul atau perabotan cantik untuk mengisi rumah kosongmu?' },
-      { id: 'mak_siti', name: 'Mak Siti (Peternakan & Peliharaan)', role: 'rancher', x: 17, y: 25, houseLocation: 'house_siti', doorX: 17, doorY: 24, portrait: 'assets/npcs/npc_rancher.png', dialog: 'Halo anak muda! Mau pelihara ayam, sapi, atau hewan peliharaan imut yang selalu mengikutimu?' },
-      { id: 'borin', name: 'Borin (Pandai Besi & Senjata)', role: 'blacksmith', x: 26, y: 25, houseLocation: 'house_blacksmith', doorX: 26, doorY: 24, portrait: 'assets/characters/portrait_boy.png', dialog: 'Dentang palu pandai besi! Mau beli pedang tajam untuk berburu monster di Hutan Misterius?' },
-      { id: 'paman_sam', name: 'Paman Sam (Nelayan Danau)', role: 'fisher', x: 38, y: 20, houseLocation: null, doorX: null, doorY: null, portrait: 'assets/npcs/npc_fisher.png', dialog: 'Angin danau sangat sepoi-sepoi! Beli alat pancing bambu untuk mencari ikan segar di sini!' },
-      { id: 'mbah_dukun', name: 'Mbah Dukun (Kontraktor Bot)', role: 'bot_elder', x: 11, y: 15, houseLocation: null, doorX: null, doorY: null, portrait: 'assets/bots/bot_boni.png', dialog: 'Hehehe... Butuh pembantu otomatis di kebun? Bayar koin dan panggil Slimey atau Boni untuk bekerja!' }
+      {
+        id: 'pak_budi',
+        name: 'Pak Budi (Toko Tani)',
+        role: 'merchant',
+        x: 8 * 16,
+        y: 25 * 16,
+        originX: 8 * 16,
+        originY: 25 * 16,
+        houseLocation: 'house_budi',
+        doorX: 8,
+        doorY: 24,
+        portrait: 'assets/npcs/npc_merchant.png',
+        dir: 'down',
+        isMoving: false,
+        anim: 0,
+        timer: 2.5,
+        targetX: 8 * 16,
+        targetY: 25 * 16,
+        dialog: 'Halo! Selamat datang di Toko Tani. Mau beli bibit unggul atau perabotan cantik untuk mengisi rumah barumu?'
+      },
+      {
+        id: 'mak_siti',
+        name: 'Mak Siti (Peternakan)',
+        role: 'rancher',
+        x: 17 * 16,
+        y: 25 * 16,
+        originX: 17 * 16,
+        originY: 25 * 16,
+        houseLocation: 'house_siti',
+        doorX: 17,
+        doorY: 24,
+        portrait: 'assets/npcs/npc_rancher.png',
+        dir: 'down',
+        isMoving: false,
+        anim: 0,
+        timer: 3.0,
+        targetX: 17 * 16,
+        targetY: 25 * 16,
+        dialog: 'Halo anak muda yang manis! Mau pelihara ayam, sapi, atau hewan peliharaan imut yang setia menemanimu?'
+      },
+      {
+        id: 'borin',
+        name: 'Borin (Pandai Besi)',
+        role: 'blacksmith',
+        x: 26 * 16,
+        y: 25 * 16,
+        originX: 26 * 16,
+        originY: 25 * 16,
+        houseLocation: 'house_blacksmith',
+        doorX: 26,
+        doorY: 24,
+        portrait: 'assets/characters/portrait_boy.png',
+        dir: 'down',
+        isMoving: false,
+        anim: 0,
+        timer: 2.0,
+        targetX: 26 * 16,
+        targetY: 25 * 16,
+        dialog: 'Dentang palu pandai besi! Mau beli pedang tajam untuk berburu monster di Hutan Misterius?'
+      },
+      {
+        id: 'paman_sam',
+        name: 'Paman Sam (Nelayan)',
+        role: 'fisher',
+        x: 37 * 16,
+        y: 19 * 16,
+        originX: 37 * 16,
+        originY: 19 * 16,
+        houseLocation: null,
+        doorX: null,
+        doorY: null,
+        portrait: 'assets/npcs/npc_fisher.png',
+        dir: 'left',
+        isMoving: false,
+        anim: 0,
+        timer: 3.5,
+        targetX: 37 * 16,
+        targetY: 19 * 16,
+        dialog: 'Angin danau sepoi-sepoi sangat tenang! Beli alat pancing bambu untuk mencari ikan segar di sini!'
+      },
+      {
+        id: 'mbah_dukun',
+        name: 'Mbah Dukun (Kontraktor)',
+        role: 'bot_elder',
+        x: 11 * 16,
+        y: 15 * 16,
+        originX: 11 * 16,
+        originY: 15 * 16,
+        houseLocation: null,
+        doorX: null,
+        doorY: null,
+        portrait: 'assets/bots/bot_boni.png',
+        dir: 'down',
+        isMoving: false,
+        anim: 0,
+        timer: 2.8,
+        targetX: 11 * 16,
+        targetY: 15 * 16,
+        dialog: 'Hehehe... Butuh pembantu otomatis di kebun? Bayar koin dan panggil Slimey atau Boni untuk bekerja!'
+      }
     ];
 
     this.initWorld();
@@ -104,7 +198,7 @@ class FarmManager {
     this.loadFromStorage();
   }
 
-  // --- OUTDOOR WORLD MAP ---
+  // --- OUTDOOR VILLAGE & FARM MAP ---
   initWorld() {
     this.grid = [];
     for (let y = 0; y < this.rows; y++) {
@@ -125,117 +219,106 @@ class FarmManager {
       this.grid[y][this.cols - 1].type = 'fence'; this.grid[y][this.cols - 1].collidable = true;
     }
 
-    // 1. Rumah Utama MC (Player) at (20..25, 3..8) with door at (23, 8)
-    for (let y = 3; y <= 7; y++) {
-      for (let x = 20; x <= 25; x++) {
-        this.grid[y][x].type = 'house_mc'; this.grid[y][x].collidable = true;
+    // 1. Cobblestone Village Pathways
+    for (let x = 2; x <= 45; x++) this.grid[9][x].type = 'path';
+    for (let x = 2; x <= 45; x++) this.grid[18][x].type = 'path';
+    for (let y = 9; y <= 27; y++) this.grid[y][23].type = 'path';
+    for (let y = 18; y <= 27; y++) {
+      this.grid[y][8].type = 'path';
+      this.grid[y][17].type = 'path';
+      this.grid[y][26].type = 'path';
+    }
+
+    // 2. MC House Footprint (Top Center x: 20..26, y: 3..8)
+    for (let y = 3; y <= 8; y++) {
+      for (let x = 20; x <= 26; x++) {
+        this.grid[y][x].type = 'building';
+        this.grid[y][x].collidable = (y !== 8 || x !== 23); // Door at (23, 8)
       }
     }
-    this.houseDoorMC = { x: 23, y: 8 };
+    this.grid[8][22].type = 'chest'; this.grid[8][22].collidable = true;
+    this.grid[8][24].type = 'sell_bin'; this.grid[8][24].collidable = true;
 
-    // 2. NPC Buildings (Toko & Rumah NPC)
-    // Pak Budi Store (x: 6..10, y: 20..24) with door at (8, 24)
-    for (let y = 20; y <= 23; y++) {
+    // 3. Toko Pak Budi (x: 6..10, y: 20..24)
+    for (let y = 20; y <= 24; y++) {
       for (let x = 6; x <= 10; x++) {
-        this.grid[y][x].type = 'building_budi'; this.grid[y][x].collidable = true;
+        this.grid[y][x].type = 'building';
+        this.grid[y][x].collidable = (y !== 24 || x !== 8);
       }
     }
 
-    // Mak Siti Ranch House (x: 15..19, y: 20..24) with door at (17, 24)
-    for (let y = 20; y <= 23; y++) {
+    // 4. Mak Siti Ranch House (x: 15..19, y: 20..24)
+    for (let y = 20; y <= 24; y++) {
       for (let x = 15; x <= 19; x++) {
-        this.grid[y][x].type = 'building_siti'; this.grid[y][x].collidable = true;
+        this.grid[y][x].type = 'building';
+        this.grid[y][x].collidable = (y !== 24 || x !== 17);
       }
     }
 
-    // Borin Blacksmith House (x: 24..28, y: 20..24) with door at (26, 24)
-    for (let y = 20; y <= 23; y++) {
+    // 5. Pandai Besi Borin (x: 24..28, y: 20..24)
+    for (let y = 20; y <= 24; y++) {
       for (let x = 24; x <= 28; x++) {
-        this.grid[y][x].type = 'building_borin'; this.grid[y][x].collidable = true;
+        this.grid[y][x].type = 'building';
+        this.grid[y][x].collidable = (y !== 24 || x !== 26);
       }
     }
 
-    // Mbah Dukun's Magic Hut at (10..13, 12..15)
-    for (let y = 12; y <= 14; y++) {
-      for (let x = 10; x <= 13; x++) {
-        this.grid[y][x].type = 'building_dukun'; this.grid[y][x].collidable = true;
-      }
-    }
-
-    // 3. Chest & Sell Bin near MC house
-    this.grid[9][21].type = 'chest'; this.grid[9][21].collidable = true;
-    this.grid[9][25].type = 'sell_bin'; this.grid[9][25].collidable = true;
-
-    // 4. Stone Paths connecting village
-    for (let y = 8; y <= 26; y++) {
-      this.grid[y][23].type = 'path'; this.grid[y][22].type = 'path';
-    }
-    for (let x = 4; x <= 42; x++) {
-      this.grid[17][x].type = 'path';
-      this.grid[25][x].type = 'path';
-    }
-
-    // 5. Animal Pasture (Left side: x: 2..12, y: 2..11)
+    // 6. Mak Siti Pasture (x: 2..12, y: 3..8)
     for (let x = 2; x <= 12; x++) {
-      this.grid[2][x].type = 'fence'; this.grid[2][x].collidable = true;
-      this.grid[11][x].type = 'fence'; this.grid[11][x].collidable = true;
+      this.grid[3][x].type = 'fence'; this.grid[3][x].collidable = true;
+      this.grid[8][x].type = 'fence'; this.grid[8][x].collidable = true;
     }
-    for (let y = 2; y <= 11; y++) {
+    for (let y = 3; y <= 8; y++) {
       this.grid[y][2].type = 'fence'; this.grid[y][2].collidable = true;
       this.grid[y][12].type = 'fence'; this.grid[y][12].collidable = true;
     }
-    this.grid[7][12].type = 'path'; this.grid[7][12].collidable = false;
+    this.grid[8][7].type = 'path'; this.grid[8][7].collidable = false; // Pasture gate
 
-    // 6. Farmland Plots
-    // Plot 1: (x: 14..21, y: 9..15)
-    for (let y = 10; y <= 15; y++) {
-      for (let x = 14; x <= 21; x++) {
-        this.grid[y][x].type = 'farmland'; this.grid[y][x].tilled = true;
-      }
+    // 7. Farming Soil Beds (x: 14..21 & 25..32, y: 11..16)
+    for (let y = 11; y <= 16; y++) {
+      for (let x = 14; x <= 21; x++) { this.grid[y][x].type = 'farmland'; this.grid[y][x].tilled = true; }
+      for (let x = 25; x <= 32; x++) { this.grid[y][x].type = 'farmland'; this.grid[y][x].tilled = true; }
     }
-    // Plot 2: (x: 25..32, y: 10..15)
-    for (let y = 10; y <= 15; y++) {
-      for (let x = 25; x <= 32; x++) {
-        this.grid[y][x].type = 'farmland'; this.grid[y][x].tilled = true;
-      }
-    }
-
-    // Well at (23, 11)
     this.grid[11][23].type = 'well'; this.grid[11][23].collidable = true;
 
-    // 7. Scenic Lake & Pier on East (x: 36..46, y: 12..28)
+    // 8. Scenic Lake & Pier on East (x: 36..46, y: 12..28)
     for (let y = 12; y <= 28; y++) {
-      for (let x = 36; x <= 46; x++) {
-        this.grid[y][x].type = 'water'; this.grid[y][x].collidable = true;
-      }
+      for (let x = 36; x <= 46; x++) { this.grid[y][x].type = 'water'; this.grid[y][x].collidable = true; }
     }
     for (let x = 36; x <= 41; x++) {
       this.grid[20][x].type = 'bridge'; this.grid[20][x].collidable = false;
     }
 
-    // 8. Gate to Mystic Woods (North-East: x: 44..46, y: 1..2)
+    // 9. Gate to Mystic Woods (North East)
     for (let x = 44; x <= 46; x++) {
-      this.grid[1][x].type = 'portal_woods';
-      this.grid[1][x].collidable = false;
+      this.grid[1][x].type = 'portal_woods'; this.grid[1][x].collidable = false;
     }
 
-    // Scenic Trees
-    const trees = [
-      [18, 4], [27, 4], [13, 3], [33, 4], [34, 9], [3, 16], [3, 21], [33, 26], [42, 8]
-    ];
-    trees.forEach(([tx, ty]) => {
-      if (this.grid[ty] && this.grid[ty][tx]) {
-        this.grid[ty][tx].type = 'tree'; this.grid[ty][tx].collidable = true;
-      }
-    });
+    // Spawn Resource Nodes (Mineable Rocks & Choppable Logs/Stumps)
+    this.initResourceNodes();
 
-    // Starter carrots
+    // Starter crop
     this.plantCrop(16, 12, 'carrot');
     this.plantCrop(17, 12, 'carrot');
     this.grid[12][16].watered = true;
   }
 
-  // --- RUMAH UTAMA MC (STARTS EMPTY FOR PLAYER CUSTOM DECORATION) ---
+  initResourceNodes() {
+    this.resourceNodes = [
+      // Mineable Rocks
+      { id: 'r1', type: 'rock', x: 4, y: 15, hp: 3, maxHp: 3, respawn: 0 },
+      { id: 'r2', type: 'rock', x: 5, y: 19, hp: 3, maxHp: 3, respawn: 0 },
+      { id: 'r3', type: 'rock', x: 33, y: 22, hp: 3, maxHp: 3, respawn: 0 },
+      { id: 'r4', type: 'ore', x: 34, y: 25, hp: 4, maxHp: 4, respawn: 0 },
+      // Choppable Logs, Stumps & Trees
+      { id: 'w1', type: 'log', x: 13, y: 4, hp: 2, maxHp: 2, respawn: 0 },
+      { id: 'w2', type: 'stump', x: 28, y: 4, hp: 2, maxHp: 2, respawn: 0 },
+      { id: 'w3', type: 'tree_chop', x: 33, y: 4, hp: 4, maxHp: 4, respawn: 0 },
+      { id: 'w4', type: 'tree_chop', x: 3, y: 22, hp: 4, maxHp: 4, respawn: 0 }
+    ];
+  }
+
+  // --- RUMAH UTAMA MC (STARTS EMPTY SO PLAYER DECORATES!) ---
   initMCHouse() {
     this.houseMCWidth = 16;
     this.houseMCHeight = 12;
@@ -251,26 +334,26 @@ class FarmManager {
     this.doorMCHouse = { x: 8, y: 11 };
   }
 
-  // --- NPC HOUSES (ALREADY FULLY FURNISHED!) ---
+  // --- NPC HOUSES (DIFFERENT & FULLY FURNISHED!) ---
   initNPCHouses() {
-    // 1. Pak Budi Store Interior (14x10)
+    // 1. Toko Pak Budi (14x10) - Filled with merchant goods & trade goods
     this.houseBudi = this.createFurnishedRoom(14, 10, [
       { id: 'cabinet', x: 2, y: 2 },
       { id: 'bookshelf', x: 5, y: 2 },
-      { id: 'dining_table', x: 9, y: 4 },
+      { id: 'dining_table', x: 8, y: 4 },
       { id: 'plant', x: 2, y: 7 },
-      { id: 'rug', x: 5, y: 5 }
+      { id: 'rug', x: 4, y: 5 }
     ]);
 
-    // 2. Mak Siti Ranch Interior (14x10)
+    // 2. Mak Siti Ranch Interior (14x10) - Farmhouse style
     this.houseSiti = this.createFurnishedRoom(14, 10, [
       { id: 'bed_double', x: 2, y: 2 },
       { id: 'fireplace', x: 6, y: 2 },
-      { id: 'dining_table', x: 9, y: 5 },
+      { id: 'dining_table', x: 8, y: 5 },
       { id: 'plant', x: 2, y: 6 }
     ]);
 
-    // 3. Blacksmith Borin Interior (14x10)
+    // 3. Blacksmith Borin Interior (14x10) - Forge & Anvil
     this.houseBlacksmith = this.createFurnishedRoom(14, 10, [
       { id: 'fireplace', x: 3, y: 2 },
       { id: 'cabinet', x: 7, y: 2 },
@@ -292,67 +375,58 @@ class FarmManager {
     return { w, h, grid, door: { x: Math.floor(w / 2), y: h - 1 }, furniture: furnitureList };
   }
 
-  // --- HUTAN MISTERIUS (MYSTIC WOODS COMBAT ZONE) ---
+  // --- MYSTIC WOODS (COMBAT & RESOURCE MAP) ---
   initMysticWoods() {
-    this.woodsW = 40;
-    this.woodsH = 30;
-    this.woodsGrid = [];
-    for (let y = 0; y < this.woodsH; y++) {
+    this.woodsCols = 40;
+    this.woodsRows = 30;
+    this.mysticWoodsGrid = [];
+
+    for (let y = 0; y < this.woodsRows; y++) {
       const row = [];
-      for (let x = 0; x < this.woodsW; x++) {
-        const isBorder = (x === 0 || x === this.woodsW - 1 || y === 0 || y === this.woodsH - 1);
-        row.push({ type: isBorder ? 'tree' : 'grass', collidable: isBorder });
+      for (let x = 0; x < this.woodsCols; x++) {
+        const isBorder = (x <= 1 || x >= this.woodsCols - 2 || y <= 1 || y >= this.woodsRows - 2);
+        row.push({
+          type: isBorder ? 'woods_tree' : 'woods_grass',
+          collidable: isBorder
+        });
       }
-      this.woodsGrid.push(row);
+      this.mysticWoodsGrid.push(row);
     }
 
-    // Portal back to village at (2, 15)
-    this.woodsGrid[15][1].type = 'portal_village';
-    this.woodsGrid[15][1].collidable = false;
+    // Portal back to village at (3, 15)
+    this.mysticWoodsGrid[15][2].type = 'portal_village';
+    this.mysticWoodsGrid[15][2].collidable = false;
 
-    // Ancient stone ruins and ponds in woods
-    for (let y = 10; y <= 18; y++) {
-      for (let x = 16; x <= 24; x++) {
-        if ((x + y) % 3 === 0) {
-          this.woodsGrid[y][x].type = 'ruin_stone';
-          this.woodsGrid[y][x].collidable = true;
-        }
-      }
-    }
-
-    // Spawn Monsters
-    this.respawnMonsters();
-  }
-
-  respawnMonsters() {
+    // Monsters (Aggressive Slimes and Skeletons)
     this.monsters = [
-      { id: 's1', type: 'slime', x: 14 * 16, y: 8 * 16, hp: 35, maxHp: 35, atk: 4, speed: 22, dir: 'down', anim: 0 },
-      { id: 's2', type: 'slime', x: 26 * 16, y: 12 * 16, hp: 35, maxHp: 35, atk: 4, speed: 22, dir: 'left', anim: 0 },
-      { id: 's3', type: 'slime', x: 20 * 16, y: 22 * 16, hp: 35, maxHp: 35, atk: 4, speed: 22, dir: 'up', anim: 0 },
-      { id: 'k1', type: 'skeleton', x: 30 * 16, y: 8 * 16, hp: 70, maxHp: 70, atk: 10, speed: 28, dir: 'down', anim: 0 },
-      { id: 'k2', type: 'skeleton', x: 32 * 16, y: 20 * 16, hp: 70, maxHp: 70, atk: 10, speed: 28, dir: 'left', anim: 0 }
+      { id: 's1', type: 'slime', x: 12 * 16, y: 10 * 16, hp: 40, maxHp: 40, atk: 12, speed: 28, dir: 'down', anim: 0, reward: 20 },
+      { id: 's2', type: 'slime', x: 22 * 16, y: 14 * 16, hp: 40, maxHp: 40, atk: 12, speed: 28, dir: 'down', anim: 0, reward: 20 },
+      { id: 's3', type: 'slime', x: 28 * 16, y: 8 * 16, hp: 40, maxHp: 40, atk: 12, speed: 28, dir: 'down', anim: 0, reward: 20 },
+      { id: 'sk1', type: 'skeleton', x: 18 * 16, y: 22 * 16, hp: 65, maxHp: 65, atk: 18, speed: 34, dir: 'down', anim: 0, reward: 35 },
+      { id: 'sk2', type: 'skeleton', x: 30 * 16, y: 20 * 16, hp: 65, maxHp: 65, atk: 18, speed: 34, dir: 'down', anim: 0, reward: 35 }
     ];
   }
 
-  // --- COLLISION CHECK BY CURRENT LOCATION ---
-  isCollidable(tx, ty, loc = this.currentLocation) {
-    if (loc === 'farm') {
+  // --- COLLISION CHECKING ---
+  isCollidable(tx, ty, location = 'farm') {
+    if (location === 'farm') {
       if (tx < 0 || tx >= this.cols || ty < 0 || ty >= this.rows) return true;
-      return this.grid[ty][tx].collidable;
-    } else if (loc === 'house_mc') {
+      if (this.grid[ty][tx].collidable) return true;
+      // Collision with resource nodes (rocks/logs)
+      const hitsNode = this.resourceNodes.some(n => n.hp > 0 && n.x === tx && n.y === ty);
+      if (hitsNode) return true;
+      return false;
+    } else if (location === 'house_mc') {
       if (tx < 0 || tx >= this.houseMCWidth || ty < 0 || ty >= this.houseMCHeight) return true;
       if (this.houseMC[ty][tx].collidable) return true;
-      // Check placed furniture collision
       const hitsFurn = this.placedFurnitureMC.some(f => {
         const def = FURNITURE_DEFINITIONS[f.id] || { w: 1, h: 1 };
         return tx >= f.x && tx < f.x + def.w && ty >= f.y && ty < f.y + def.h;
       });
       return hitsFurn;
-    } else if (loc === 'woods') {
-      if (tx < 0 || tx >= this.woodsW || ty < 0 || ty >= this.woodsH) return true;
-      return this.woodsGrid[ty][tx].collidable;
-    } else if (loc === 'house_budi' || loc === 'house_siti' || loc === 'house_blacksmith') {
-      const room = loc === 'house_budi' ? this.houseBudi : (loc === 'house_siti' ? this.houseSiti : this.houseBlacksmith);
+    } else if (location.startsWith('house_')) {
+      const room = location === 'house_budi' ? this.houseBudi : (location === 'house_siti' ? this.houseSiti : this.houseBlacksmith);
+      if (!room) return false;
       if (tx < 0 || tx >= room.w || ty < 0 || ty >= room.h) return true;
       if (room.grid[ty][tx].collidable) return true;
       const hitsFurn = room.furniture.some(f => {
@@ -360,130 +434,175 @@ class FarmManager {
         return tx >= f.x && tx < f.x + def.w && ty >= f.y && ty < f.y + def.h;
       });
       return hitsFurn;
+    } else if (location === 'woods') {
+      if (tx < 0 || tx >= this.woodsCols || ty < 0 || ty >= this.woodsRows) return true;
+      return this.mysticWoodsGrid[ty][tx].collidable;
     }
     return false;
   }
 
-  // --- MC HOUSE CUSTOM FURNITURE PLACEMENT ---
+  // --- MINING & WOODCUTTING ACTIONS ---
+  mineRock(tx, ty) {
+    const node = this.resourceNodes.find(n => n.hp > 0 && (n.type === 'rock' || n.type === 'ore') && n.x === tx && n.y === ty);
+    if (!node) return null;
+
+    node.hp -= 1;
+    if (node.hp <= 0) {
+      const isOre = node.type === 'ore';
+      const yieldStone = 2 + Math.floor(Math.random() * 2);
+      const yieldOre = isOre ? (1 + Math.floor(Math.random() * 2)) : 0;
+      this.chest.produce.stone = (this.chest.produce.stone || 0) + yieldStone;
+      if (isOre) this.chest.produce.ore = (this.chest.produce.ore || 0) + yieldOre;
+      node.respawn = 60; // 60 seconds respawn
+      this.addLovePoints(5);
+      return { destroyed: true, yield: yieldStone, oreYield: yieldOre, nodeType: node.type };
+    }
+    return { destroyed: false, hp: node.hp };
+  }
+
+  chopWood(tx, ty) {
+    const node = this.resourceNodes.find(n => n.hp > 0 && (n.type === 'log' || n.type === 'stump' || n.type === 'tree_chop') && n.x === tx && n.y === ty);
+    if (!node) return null;
+
+    node.hp -= 1;
+    if (node.hp <= 0) {
+      const yieldWood = node.type === 'tree_chop' ? 4 : 2;
+      this.chest.produce.wood = (this.chest.produce.wood || 0) + yieldWood;
+      node.respawn = 60;
+      this.addLovePoints(5);
+      return { destroyed: true, yield: yieldWood, nodeType: node.type };
+    }
+    return { destroyed: false, hp: node.hp };
+  }
+
+  // --- CONSUME FOOD / CROPS TO HEAL HP ---
+  eatCrop(cropId) {
+    const def = CROP_DEFINITIONS[cropId];
+    if (!def) return null;
+    if ((this.chest.produce[cropId] || 0) <= 0) return null;
+
+    this.chest.produce[cropId]--;
+    const healAmount = def.healHp || 25;
+    this.playerHp = Math.min(this.playerMaxHp, this.playerHp + healAmount);
+    return { def, heal: healAmount };
+  }
+
+  // --- MC HOUSE CUSTOM FURNITURE ARRANGEMENT ---
   placeFurnitureMC(furnId, tx, ty) {
-    const idx = this.ownedFurniture.indexOf(furnId);
-    if (idx === -1) return false;
     const def = FURNITURE_DEFINITIONS[furnId];
     if (!def) return false;
-
-    // Check bounds & collision
+    // Boundary check
     if (tx < 1 || tx + def.w > this.houseMCWidth - 1 || ty < 3 || ty + def.h > this.houseMCHeight - 1) return false;
+    // Avoid blocking the main door at (8, 11)
+    if (tx <= 8 && tx + def.w > 8 && ty + def.h >= 11) return false;
 
-    this.ownedFurniture.splice(idx, 1);
     this.placedFurnitureMC.push({ id: furnId, x: tx, y: ty });
     this.autoSave();
     return true;
   }
 
-  pickupFurnitureMC(tx, ty) {
+  removeFurnitureMC(tx, ty) {
     const fIdx = this.placedFurnitureMC.findIndex(f => {
       const def = FURNITURE_DEFINITIONS[f.id] || { w: 1, h: 1 };
       return tx >= f.x && tx < f.x + def.w && ty >= f.y && ty < f.y + def.h;
     });
+
     if (fIdx !== -1) {
       const f = this.placedFurnitureMC[fIdx];
       this.placedFurnitureMC.splice(fIdx, 1);
       this.ownedFurniture.push(f.id);
       this.autoSave();
-      return f.id;
-    }
-    return null;
-  }
-
-  // --- FARM & ACTIONS ---
-  tillSoil(tx, ty) {
-    if (this.currentLocation !== 'farm') return false;
-    if (tx < 0 || tx >= this.cols || ty < 0 || ty >= this.rows) return false;
-    const tile = this.grid[ty][tx];
-    if (tile.type === 'grass' && !tile.collidable) {
-      tile.type = 'farmland'; tile.tilled = true; tile.watered = false;
-      this.addLovePoints(1); this.autoSave(); return true;
+      return true;
     }
     return false;
   }
 
-  waterSoil(tx, ty) {
+  // --- FARMING ACTIONS ---
+  tillSoil(x, y) {
     if (this.currentLocation !== 'farm') return false;
-    if (tx < 0 || tx >= this.cols || ty < 0 || ty >= this.rows) return false;
-    const tile = this.grid[ty][tx];
-    if (tile.tilled || tile.type === 'farmland') {
-      tile.watered = true; tile.waterTimer = 180;
-      this.addLovePoints(2); this.autoSave(); return true;
+    if (x < 0 || x >= this.cols || y < 0 || y >= this.rows) return false;
+    const tile = this.grid[y][x];
+    if (tile.collidable || tile.type === 'path' || tile.type === 'water') return false;
+    tile.type = 'farmland';
+    tile.tilled = true;
+    return true;
+  }
+
+  waterSoil(x, y) {
+    if (this.currentLocation !== 'farm') return false;
+    if (x < 0 || x >= this.cols || y < 0 || y >= this.rows) return false;
+    const tile = this.grid[y][x];
+    if (tile.tilled) {
+      tile.watered = true;
+      tile.waterTimer = 60;
+      return true;
     }
     return false;
   }
 
-  plantCrop(tx, ty, cropType) {
+  plantCrop(x, y, cropId) {
     if (this.currentLocation !== 'farm') return false;
-    if (tx < 0 || tx >= this.cols || ty < 0 || ty >= this.rows) return false;
-    const tile = this.grid[ty][tx];
-    if (!tile.tilled || tile.crop || !CROP_DEFINITIONS[cropType]) return false;
-    tile.crop = { id: cropType, stage: 0, progress: 0, ready: false };
-    this.addLovePoints(3); this.autoSave(); return true;
+    if (x < 0 || x >= this.cols || y < 0 || y >= this.rows) return false;
+    const tile = this.grid[y][x];
+    if (tile.tilled && !tile.crop) {
+      tile.crop = { id: cropId, stage: 0, progress: 0, ready: false };
+      return true;
+    }
+    return false;
   }
 
-  harvestCrop(tx, ty) {
+  harvestCrop(x, y) {
     if (this.currentLocation !== 'farm') return null;
-    if (tx < 0 || tx >= this.cols || ty < 0 || ty >= this.rows) return null;
-    const tile = this.grid[ty][tx];
+    const tile = this.grid[y][x];
     if (tile.crop && tile.crop.ready) {
-      const def = CROP_DEFINITIONS[tile.crop.id];
       const cropId = tile.crop.id;
+      const def = CROP_DEFINITIONS[cropId];
       tile.crop = null;
-      this.chest.produce[cropId] = (this.chest.produce[cropId] || 0) + 1;
-      this.addLovePoints(def.loveReward);
-      this.autoSave();
+      if (def) {
+        this.chest.produce[cropId] = (this.chest.produce[cropId] || 0) + 1;
+        this.addLovePoints(def.loveReward);
+        this.autoSave();
+      }
       return def;
     }
     return null;
   }
 
-  catchFish() {
-    const fishTypes = [
-      { id: 'fish', name: 'Ikan Mas Segar 🐟', price: 25, love: 10 },
-      { id: 'fish', name: 'Ikan Gurame Telaga 🐠', price: 45, love: 15 },
-      { id: 'fish', name: 'Ikan Hati Romantis 💖', price: 80, love: 25 }
-    ];
-    const caught = fishTypes[Math.floor(Math.random() * fishTypes.length)];
-    this.chest.produce.fish = (this.chest.produce.fish || 0) + 1;
-    this.addLovePoints(caught.love);
-    this.autoSave();
-    return caught;
-  }
-
   sellAllProduce() {
-    let earned = 0;
-    for (const [id, count] of Object.entries(this.chest.produce)) {
+    let totalEarnings = 0;
+    // Crops
+    for (const [cropId, count] of Object.entries(this.chest.produce)) {
       if (count > 0) {
-        if (CROP_DEFINITIONS[id]) earned += count * CROP_DEFINITIONS[id].sellPrice;
-        else if (id === 'fish') earned += count * 35;
-        else if (id === 'milk') earned += count * 40;
-        else if (id === 'egg') earned += count * 25;
-        else if (id === 'wool') earned += count * 55;
-        else if (id === 'monster_gel') earned += count * 30;
-        this.chest.produce[id] = 0;
+        const def = CROP_DEFINITIONS[cropId];
+        let price = def ? def.sellPrice : 0;
+        if (cropId === 'wood') price = 4;
+        if (cropId === 'stone') price = 3;
+        if (cropId === 'ore') price = 15;
+        if (cropId === 'fish') price = 18;
+        if (cropId === 'milk') price = 24;
+        if (cropId === 'egg') price = 12;
+        if (cropId === 'wool') price = 20;
+        if (cropId === 'monster_gel') price = 16;
+
+        totalEarnings += count * price;
+        this.chest.produce[cropId] = 0;
       }
     }
-    if (earned > 0) {
-      this.coins += earned;
-      this.addLovePoints(Math.floor(earned / 4));
+    this.coins += totalEarnings;
+    if (totalEarnings > 0) {
+      this.addLovePoints(Math.floor(totalEarnings / 5));
       this.autoSave();
     }
-    return earned;
+    return totalEarnings;
   }
 
-  buySeeds(cropId, amount = 1) {
+  // --- SHOPPING & ECONOMY ---
+  buySeed(cropId) {
     const def = CROP_DEFINITIONS[cropId];
-    if (!def) return false;
-    const cost = def.seedPrice * amount;
-    if (this.coins >= cost) {
-      this.coins -= cost;
-      this.chest.seeds[cropId] = (this.chest.seeds[cropId] || 0) + amount;
+    if (def && this.coins >= def.seedPrice) {
+      this.coins -= def.seedPrice;
+      this.chest.seeds[cropId] = (this.chest.seeds[cropId] || 0) + 1;
+      this.addLovePoints(1);
       this.autoSave();
       return true;
     }
@@ -491,21 +610,10 @@ class FarmManager {
   }
 
   buyTool(toolId, price) {
-    if (this.coins >= price) {
+    if (this.coins >= price && !this.unlockedTools[toolId]) {
       this.coins -= price;
       this.unlockedTools[toolId] = true;
       this.addLovePoints(15);
-      this.autoSave();
-      return true;
-    }
-    return false;
-  }
-
-  hireBot(botId, price) {
-    if (this.coins >= price) {
-      this.coins -= price;
-      this.unlockedBots[botId] = true;
-      this.addLovePoints(25);
       this.autoSave();
       return true;
     }
@@ -560,14 +668,16 @@ class FarmManager {
     return LOVE_LEVEL_TITLES[Math.min(this.loveLevel - 1, LOVE_LEVEL_TITLES.length - 1)];
   }
 
-  update(delta) {
+  // --- UPDATE LOOP ---
+  update(delta, playerPxX, playerPxY) {
+    // Time progression
     this.timeMinutes += delta * this.timeSpeed;
     if (this.timeMinutes >= 1440) {
       this.timeMinutes -= 1440;
       this.dayCount++;
     }
 
-    // Crop Growth in farm
+    // Crop growth
     for (let y = 0; y < this.rows; y++) {
       for (let x = 0; x < this.cols; x++) {
         const tile = this.grid[y][x];
@@ -592,84 +702,213 @@ class FarmManager {
       }
     }
 
-    // Monster AI in Mystic Woods
-    if (this.currentLocation === 'woods') {
-      this.updateMonsters(delta);
+    // Resource Nodes Respawn Timer
+    this.resourceNodes.forEach(node => {
+      if (node.respawn > 0) {
+        node.respawn -= delta;
+        if (node.respawn <= 0) {
+          node.hp = node.maxHp;
+        }
+      }
+    });
+
+    // Active NPC Wandering AI
+    if (this.currentLocation === 'farm') {
+      this.updateNPCs(delta, playerPxX, playerPxY);
     }
+
+    // Monster AGGRO & Attack in Mystic Woods
+    if (this.currentLocation === 'woods') {
+      return this.updateMonstersAggro(delta, playerPxX, playerPxY);
+    }
+    return null;
   }
 
-  updateMonsters(delta) {
-    this.monsters.forEach(m => {
-      m.anim = (m.anim + delta * 5) % 6;
-      // Slime & Skeleton patrol wandering
-      if (!m.timer || m.timer <= 0) {
-        m.timer = 1.5 + Math.random() * 2;
-        m.vx = (Math.random() - 0.5) * m.speed;
-        m.vy = (Math.random() - 0.5) * m.speed;
-        m.dir = Math.abs(m.vx) > Math.abs(m.vy) ? (m.vx > 0 ? 'right' : 'left') : (m.vy > 0 ? 'down' : 'up');
-      } else {
-        m.timer -= delta;
-        const nx = m.x + m.vx * delta;
-        const ny = m.y + m.vy * delta;
-        const tx = Math.floor(nx / 16);
-        const ty = Math.floor(ny / 16);
-        if (!this.isCollidable(tx, ty, 'woods')) {
-          m.x = nx;
-          m.y = ny;
+  // --- ACTIVE NPC WANDER AI ---
+  updateNPCs(delta, px, py) {
+    this.npcs.forEach(npc => {
+      const distToPlayer = Math.hypot(npc.x + 8 - px, npc.y + 8 - py);
+
+      // If player is talking or very close, stop and face player
+      if (distToPlayer < 36) {
+        npc.isMoving = false;
+        const dx = px - (npc.x + 8);
+        const dy = py - (npc.y + 8);
+        if (Math.abs(dx) > Math.abs(dy)) npc.dir = dx > 0 ? 'right' : 'left';
+        else npc.dir = dy > 0 ? 'down' : 'up';
+        return;
+      }
+
+      npc.timer -= delta;
+      if (npc.timer <= 0) {
+        npc.timer = 2.5 + Math.random() * 3.5;
+        // 45% chance to wander around shop, 55% chance to pause
+        if (Math.random() < 0.45) {
+          npc.isMoving = true;
+          // Pick a target within 32 pixels from origin
+          const angle = Math.random() * Math.PI * 2;
+          const radius = 10 + Math.random() * 24;
+          npc.targetX = npc.originX + Math.cos(angle) * radius;
+          npc.targetY = npc.originY + Math.sin(angle) * radius;
         } else {
-          m.timer = 0;
+          npc.isMoving = false;
+        }
+      }
+
+      if (npc.isMoving) {
+        const dx = npc.targetX - npc.x;
+        const dy = npc.targetY - npc.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist > 2) {
+          const step = 18 * delta; // gentle walking speed
+          npc.x += (dx / dist) * step;
+          npc.y += (dy / dist) * step;
+          npc.anim = (npc.anim + delta * 5) % 6;
+
+          if (Math.abs(dx) > Math.abs(dy)) npc.dir = dx > 0 ? 'right' : 'left';
+          else npc.dir = dy > 0 ? 'down' : 'up';
+        } else {
+          npc.isMoving = false;
+          npc.anim = 0;
         }
       }
     });
   }
 
+  // --- MONSTER AGGRO & ATTACK SYSTEM ---
+  updateMonstersAggro(delta, px, py) {
+    let playerHitDamage = 0;
+    this.monsters.forEach(m => {
+      m.anim = (m.anim + delta * 6) % 4;
+      const dist = Math.hypot(m.x + 16 - px, m.y + 16 - py);
+
+      // AGGRO when player approaches (within 75 pixels)
+      if (dist < 75) {
+        m.aggro = true;
+        const dx = px - (m.x + 16);
+        const dy = py - (m.y + 16);
+        m.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+
+        // Move towards player
+        const step = m.speed * delta;
+        const nx = m.x + (dx / dist) * step;
+        const ny = m.y + (dy / dist) * step;
+        const tx = Math.floor(nx / 16);
+        const ty = Math.floor(ny / 16);
+
+        if (!this.isCollidable(tx, ty, 'woods')) {
+          m.x = nx;
+          m.y = ny;
+        }
+
+        // Monster Attack player when touching (dist < 22)
+        if (dist < 22) {
+          if (!m.atkCooldown || m.atkCooldown <= 0) {
+            m.atkCooldown = 1.4; // 1.4s between attacks
+            playerHitDamage += m.atk;
+          }
+        }
+      } else {
+        m.aggro = false;
+        // Wander peacefully
+        if (!m.timer || m.timer <= 0) {
+          m.timer = 2 + Math.random() * 2.5;
+          m.vx = (Math.random() - 0.5) * 16;
+          m.vy = (Math.random() - 0.5) * 16;
+          m.dir = Math.abs(m.vx) > Math.abs(m.vy) ? (m.vx > 0 ? 'right' : 'left') : (m.vy > 0 ? 'down' : 'up');
+        } else {
+          m.timer -= delta;
+          const nx = m.x + m.vx * delta;
+          const ny = m.y + m.vy * delta;
+          const tx = Math.floor(nx / 16);
+          const ty = Math.floor(ny / 16);
+          if (!this.isCollidable(tx, ty, 'woods')) { m.x = nx; m.y = ny; }
+          else { m.timer = 0; }
+        }
+      }
+
+      if (m.atkCooldown > 0) m.atkCooldown -= delta;
+    });
+
+    return playerHitDamage > 0 ? playerHitDamage : null;
+  }
+
   attackMonster(playerX, playerY, damage = 25) {
-    let hitMonster = null;
-    for (let i = this.monsters.length - 1; i >= 0; i--) {
+    for (let i = 0; i < this.monsters.length; i++) {
       const m = this.monsters[i];
-      const dist = Math.hypot(m.x - playerX, m.y - playerY);
-      if (dist < 36) {
+      const dist = Math.hypot(m.x + 16 - playerX, m.y + 16 - playerY);
+      if (dist < 34) {
         m.hp -= damage;
-        hitMonster = m;
+        // Pushback
+        const pushDirX = m.x + 16 - playerX;
+        const pushDirY = m.y + 16 - playerY;
+        const pLen = Math.hypot(pushDirX, pushDirY) || 1;
+        m.x += (pushDirX / pLen) * 14;
+        m.y += (pushDirY / pLen) * 14;
+
         if (m.hp <= 0) {
-          // Monster defeated!
-          this.monsters.splice(i, 1);
-          const earned = 20 + Math.floor(Math.random() * 25);
+          const earned = m.reward || 20;
           this.coins += earned;
           this.chest.produce.monster_gel = (this.chest.produce.monster_gel || 0) + 1;
           this.addLovePoints(15);
-          if (window.soundSystem) window.soundSystem.playMonsterDefeat();
+          // Respawn monster at random position
+          m.hp = m.maxHp;
+          m.x = (6 + Math.random() * 26) * 16;
+          m.y = (6 + Math.random() * 20) * 16;
+          this.autoSave();
           return { hit: true, defeated: true, earned, monster: m };
-        } else {
-          if (window.soundSystem) window.soundSystem.playMonsterHit();
-          return { hit: true, defeated: false, damage, monster: m };
         }
+        return { hit: true, defeated: false, monster: m };
       }
     }
     return null;
   }
 
+  // --- SMOOTH ROMANTIC DAY & NIGHT CYCLE ---
   getTimeOfDay() {
-    const hours = this.timeMinutes / 60;
-    if (hours >= 5 && hours < 7) {
-      return { phase: 'sunrise', ambient: 'rgba(255, 180, 100, 0.22)', label: 'Pagi Hari 🌅' };
-    } else if (hours >= 7 && hours < 16.5) {
-      return { phase: 'day', ambient: 'rgba(255, 255, 255, 0)', label: 'Siang Cerah ☀️' };
-    } else if (hours >= 16.5 && hours < 19.5) {
-      return { phase: 'sunset', ambient: 'rgba(255, 120, 70, 0.35)', label: 'Senja Romantis 🌇' };
+    const hours = this.timeMinutes / 60; // 0..24
+    let phase = 'day';
+    let label = 'Siang Cerah ☀️';
+    let ambient = 'rgba(255, 255, 255, 0)';
+
+    if (hours >= 4.5 && hours < 6.5) {
+      phase = 'sunrise';
+      label = 'Pagi Fajar 🌅';
+      // Smooth lerp from dark to warm golden sunrise
+      const progress = (hours - 4.5) / 2.0;
+      const alpha = 0.35 * (1 - progress);
+      ambient = `rgba(255, 170, 90, ${alpha.toFixed(2)})`;
+    } else if (hours >= 6.5 && hours < 16.5) {
+      phase = 'day';
+      label = 'Siang Cerah ☀️';
+      ambient = 'rgba(255, 255, 255, 0)';
+    } else if (hours >= 16.5 && hours < 19.0) {
+      phase = 'sunset';
+      label = 'Senja Romantis 🌇';
+      // Smooth lerp to deep sunset orange
+      const progress = (hours - 16.5) / 2.5;
+      const alpha = 0.08 + 0.24 * progress;
+      ambient = `rgba(255, 120, 60, ${alpha.toFixed(2)})`;
     } else {
-      return { phase: 'night', ambient: 'rgba(15, 25, 75, 0.65)', label: 'Malam Berbintang 🌙' };
+      phase = 'night';
+      label = 'Malam Berbintang 🌙';
+      // Gentle romantic starry night ambient (not pitch black)
+      ambient = 'rgba(18, 30, 75, 0.36)';
     }
+
+    return { phase, ambient, label };
   }
 
   sleepTogether() {
-    this.timeMinutes = 420;
+    this.timeMinutes = 420; // 07:00 AM
     this.dayCount++;
+    this.playerHp = this.playerMaxHp;
     this.addLovePoints(40);
     this.autoSave();
   }
 
-  // --- SERIALIZATION ---
+  // --- SAVE & RESTORE ---
   getSnapshot() {
     const compressedTiles = [];
     for (let y = 0; y < this.rows; y++) {
@@ -685,10 +924,11 @@ class FarmManager {
     }
 
     return {
-      version: 3,
+      version: 5,
       coins: this.coins,
       lovePoints: this.lovePoints,
       loveLevel: this.loveLevel,
+      playerHp: this.playerHp,
       dayCount: this.dayCount,
       timeMinutes: Math.round(this.timeMinutes),
       unlockedTools: this.unlockedTools,
@@ -707,9 +947,10 @@ class FarmManager {
     if (data.coins !== undefined) this.coins = data.coins;
     if (data.lovePoints !== undefined) this.lovePoints = data.lovePoints;
     if (data.loveLevel !== undefined) this.loveLevel = data.loveLevel;
+    if (data.playerHp !== undefined) this.playerHp = data.playerHp;
     if (data.dayCount !== undefined) this.dayCount = data.dayCount;
     if (data.timeMinutes !== undefined) this.timeMinutes = data.timeMinutes;
-    if (data.unlockedTools) this.unlockedTools = data.unlockedTools;
+    if (data.unlockedTools) this.unlockedTools = { ...this.unlockedTools, ...data.unlockedTools };
     if (data.unlockedBots) this.unlockedBots = data.unlockedBots;
     if (data.ownedAnimals) this.ownedAnimals = data.ownedAnimals;
     if (data.activePet !== undefined) this.activePet = data.activePet;
@@ -732,21 +973,18 @@ class FarmManager {
 
   autoSave() {
     try {
-      const snap = this.getSnapshot();
-      localStorage.setItem('kebun_cinta_save_v3', JSON.stringify(snap));
+      localStorage.setItem('kebun_cinta_save_v5', JSON.stringify(this.getSnapshot()));
     } catch (e) {
-      console.warn('Save failed:', e);
+      console.warn('Save error:', e);
     }
   }
 
   loadFromStorage() {
     try {
-      const str = localStorage.getItem('kebun_cinta_save_v3') || localStorage.getItem('kebun_cinta_save_data_v2');
-      if (str) {
-        this.applySnapshot(JSON.parse(str));
-      }
+      const str = localStorage.getItem('kebun_cinta_save_v5') || localStorage.getItem('kebun_cinta_save_v4');
+      if (str) this.applySnapshot(JSON.parse(str));
     } catch (e) {
-      console.warn('Load failed:', e);
+      console.warn('Load error:', e);
     }
   }
 
