@@ -396,9 +396,19 @@
       const input = document.getElementById('shareableLinkInput');
       input.select();
       input.setSelectionRange(0, 99999);
-      navigator.clipboard.writeText(input.value).then(() => {
+      const onCopied = () => {
+        if (game) game.showNotification('📋 Link berhasil disalin! Kirim ke pacarmu di WhatsApp~ ❤️');
         alert('Link berhasil disalin! Kirim ke pacarmu via WhatsApp/Discord untuk langsung main bareng!');
-      });
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(input.value).then(onCopied).catch(() => {
+          document.execCommand('copy');
+          onCopied();
+        });
+      } else {
+        document.execCommand('copy');
+        onCopied();
+      }
     }
 
     function updateBotSettings(botId, role) {
