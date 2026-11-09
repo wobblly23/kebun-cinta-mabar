@@ -266,26 +266,48 @@ class NetworkManager {
         if (window.soundSystem) window.soundSystem.playHarvest();
         break;
 
+      case 'action_chop':
+        this.game.farm.chopWood(data.x, data.y);
+        if (window.soundSystem) window.soundSystem.playSwordSwing();
+        break;
+
+      case 'action_mine':
+        this.game.farm.mineRock(data.x, data.y);
+        if (window.soundSystem) window.soundSystem.playTill();
+        break;
+
       case 'action_sell':
         this.game.farm.sellAllProduce();
         if (window.soundSystem) window.soundSystem.playCoin();
         break;
 
       case 'action_emote':
-        this.game.showPartnerEmote(data.emote);
+      case 'emote':
+        this.game.partner.emote = data.emote;
+        this.game.partner.emoteTimer = 2.5;
         break;
 
       case 'action_chat':
-        this.game.receiveChatMessage(data.sender, data.text);
+      case 'chat':
+        this.game.appendChat(data.sender, data.text, false);
         break;
 
       case 'action_kiss':
+      case 'kiss':
         this.game.triggerCoupleKiss(true);
         break;
 
       case 'action_sleep':
+      case 'sleep_sync':
         this.game.farm.sleepTogether();
         this.game.showNotification('Kalian berdua tidur bersama dan menyambut pagi! ☀️🛏️');
+        this.game.updateHUD();
+        break;
+
+      case 'teleport':
+        this.game.partner.location = data.location;
+        this.game.partner.x = data.x;
+        this.game.partner.y = data.y;
         break;
 
       case 'action_pet_animal':

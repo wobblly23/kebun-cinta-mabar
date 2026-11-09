@@ -1,11 +1,94 @@
-// js/farm.js - Complete Multi-Location World, Mining, Woodcutting, Monster Aggro, and Health System
+// js/farm.js - Complete Multi-Crop Sunnyside System, Timed Growth, Animal Production, Mining & Combat
 
 const CROP_DEFINITIONS = {
-  carrot: { id: 'carrot', name: 'Wortel Manis', icon: '🥕', plantRow: 0, growTime: 12, sellPrice: 12, seedPrice: 5, healHp: 20, loveReward: 4 },
-  potato: { id: 'potato', name: 'Kentang Emas', icon: '🥔', plantRow: 1, growTime: 18, sellPrice: 22, seedPrice: 8, healHp: 25, loveReward: 6 },
-  tomato: { id: 'tomato', name: 'Tomat Segar', icon: '🍅', plantRow: 2, growTime: 26, sellPrice: 38, seedPrice: 15, healHp: 35, loveReward: 10 },
-  strawberry: { id: 'strawberry', name: 'Stroberi Cinta', icon: '🍓', plantRow: 3, growTime: 36, sellPrice: 65, seedPrice: 25, healHp: 50, loveReward: 18 },
-  melon: { id: 'melon', name: 'Semangka Kebun', icon: '🍉', plantRow: 4, growTime: 48, sellPrice: 110, seedPrice: 40, healHp: 80, loveReward: 30 }
+  carrot: {
+    id: 'carrot',
+    name: 'Wortel Manis',
+    icon: '🥕',
+    growTime: 25, // 25s (with water 12.5s)
+    sellPrice: 15,
+    seedPrice: 6,
+    healHp: 20,
+    loveReward: 5,
+    desc: 'Wortel renyah manis kaya vitamin.'
+  },
+  cabbage: {
+    id: 'cabbage',
+    name: 'Kubis Segar',
+    icon: '🥬',
+    growTime: 35,
+    sellPrice: 28,
+    seedPrice: 10,
+    healHp: 28,
+    loveReward: 8,
+    desc: 'Kubis hijau segar berlapis-lapis.'
+  },
+  potato: {
+    id: 'potato',
+    name: 'Kentang Emas',
+    icon: '🥔',
+    growTime: 50,
+    sellPrice: 42,
+    seedPrice: 16,
+    healHp: 35,
+    loveReward: 12,
+    desc: 'Kentang gurih untuk santap malam bersama.'
+  },
+  beetroot: {
+    id: 'beetroot',
+    name: 'Bit Manis Merah',
+    icon: '🍠',
+    growTime: 65,
+    sellPrice: 58,
+    seedPrice: 22,
+    healHp: 45,
+    loveReward: 16,
+    desc: 'Bit merah kaya nutrisi penambah tenaga.'
+  },
+  cauliflower: {
+    id: 'cauliflower',
+    name: 'Kembang Kol',
+    icon: '🥦',
+    growTime: 80,
+    sellPrice: 78,
+    seedPrice: 30,
+    healHp: 60,
+    loveReward: 20,
+    desc: 'Kembang kol putih bersih lezat dimasak sup.'
+  },
+  pumpkin: {
+    id: 'pumpkin',
+    name: 'Labu Emas',
+    icon: '🎃',
+    growTime: 110,
+    sellPrice: 125,
+    seedPrice: 45,
+    healHp: 85,
+    loveReward: 32,
+    desc: 'Labu emas besar bernilai jual sangat tinggi.'
+  },
+  radish: {
+    id: 'radish',
+    name: 'Lobak Putih',
+    icon: '🥗',
+    growTime: 40,
+    sellPrice: 32,
+    seedPrice: 12,
+    healHp: 30,
+    loveReward: 9,
+    desc: 'Lobak segar penambah nafsu makan.'
+  },
+  wheat: {
+    id: 'wheat',
+    name: 'Gandum Panen',
+    icon: '🌾',
+    growTime: 55,
+    sellPrice: 48,
+    seedPrice: 18,
+    healHp: 40,
+    loveReward: 14,
+    desc: 'Gandum emas melambai untuk membuat roti harum.'
+  }
 };
 
 const FURNITURE_DEFINITIONS = {
@@ -40,19 +123,19 @@ class FarmManager {
     this.houseBlacksmith = null;
     this.mysticWoodsGrid = [];
 
-    // Economy & Love & HP
-    this.coins = 70;
+    // Economy & Health
+    this.coins = 80;
     this.lovePoints = 0;
     this.loveLevel = 1;
     this.playerHp = 100;
     this.playerMaxHp = 100;
 
-    // Tools & Resources
+    // Tools
     this.unlockedTools = {
       hoe: true,
       water: true,
-      axe: true,       // Woodchopping starter tool
-      pickaxe: true,   // Mining starter tool
+      axe: true,
+      pickaxe: true,
       fishing_rod: false,
       sword_iron: false,
       sword_gold: false,
@@ -63,91 +146,91 @@ class FarmManager {
     this.ownedAnimals = [];
     this.activePet = null;
 
-    // MC House Furniture (Starts EMPTY so players decorate themselves)
+    // MC House Starts Empty!
     this.ownedFurniture = [];
     this.placedFurnitureMC = [];
 
-    // Shared storage chest
+    // Shared Storage
     this.chest = {
-      seeds: { carrot: 4, potato: 2, tomato: 0, strawberry: 0, melon: 0 },
+      seeds: { carrot: 4, cabbage: 2, potato: 2, beetroot: 0, cauliflower: 0, pumpkin: 0, radish: 0, wheat: 0 },
       produce: {
-        carrot: 0, potato: 0, tomato: 0, strawberry: 0, melon: 0,
+        carrot: 0, cabbage: 0, potato: 0, beetroot: 0, cauliflower: 0, pumpkin: 0, radish: 0, wheat: 0,
         wood: 0, stone: 0, ore: 0, fish: 0, milk: 0, egg: 0, wool: 0, monster_gel: 0
       }
     };
 
-    // World Resource Nodes (Mineable Rocks & Choppable Trees/Logs)
+    // World Resource Nodes
     this.resourceNodes = [];
 
     // Monsters in Mystic Woods
     this.monsters = [];
 
-    // Day & Night Cycle
-    this.timeMinutes = 480; // 08:00 morning
+    // Time & Day Cycle
+    this.timeMinutes = 480; // 08:00
     this.dayCount = 1;
-    this.timeSpeed = 2.0;
+    this.timeSpeed = 1.8;
 
-    // NPCs with Active Movement & Wander AI
+    // NPCs with Active Wander Movement
     this.npcs = [
       {
         id: 'pak_budi',
         name: 'Pak Budi (Toko Tani)',
         role: 'merchant',
-        x: 8 * 16,
+        x: 9 * 16,
         y: 25 * 16,
-        originX: 8 * 16,
+        originX: 9 * 16,
         originY: 25 * 16,
         houseLocation: 'house_budi',
-        doorX: 8,
+        doorX: 9,
         doorY: 24,
         portrait: 'assets/npcs/npc_merchant.png',
         dir: 'down',
         isMoving: false,
         anim: 0,
         timer: 2.5,
-        targetX: 8 * 16,
+        targetX: 9 * 16,
         targetY: 25 * 16,
-        dialog: 'Halo! Selamat datang di Toko Tani. Mau beli bibit unggul atau perabotan cantik untuk mengisi rumah barumu?'
+        dialog: 'Halo! Selamat datang di Toko Tani. Mau bibit wortel, kubis, labu, atau perabotan cantik untuk mengisi rumahmu?'
       },
       {
         id: 'mak_siti',
         name: 'Mak Siti (Peternakan)',
         role: 'rancher',
-        x: 17 * 16,
+        x: 18 * 16,
         y: 25 * 16,
-        originX: 17 * 16,
+        originX: 18 * 16,
         originY: 25 * 16,
         houseLocation: 'house_siti',
-        doorX: 17,
+        doorX: 18,
         doorY: 24,
         portrait: 'assets/npcs/npc_rancher.png',
         dir: 'down',
         isMoving: false,
         anim: 0,
         timer: 3.0,
-        targetX: 17 * 16,
+        targetX: 18 * 16,
         targetY: 25 * 16,
-        dialog: 'Halo anak muda yang manis! Mau pelihara ayam, sapi, atau hewan peliharaan imut yang setia menemanimu?'
+        dialog: 'Halo anak muda manis! Mau pelihara ayam, sapi, atau hewan peliharaan imut yang setia menemanimu?'
       },
       {
         id: 'borin',
         name: 'Borin (Pandai Besi)',
         role: 'blacksmith',
-        x: 26 * 16,
+        x: 27 * 16,
         y: 25 * 16,
-        originX: 26 * 16,
+        originX: 27 * 16,
         originY: 25 * 16,
         houseLocation: 'house_blacksmith',
-        doorX: 26,
+        doorX: 27,
         doorY: 24,
         portrait: 'assets/characters/portrait_boy.png',
         dir: 'down',
         isMoving: false,
         anim: 0,
         timer: 2.0,
-        targetX: 26 * 16,
+        targetX: 27 * 16,
         targetY: 25 * 16,
-        dialog: 'Dentang palu pandai besi! Mau beli pedang tajam untuk berburu monster di Hutan Misterius?'
+        dialog: 'Dentang palu pandai besi! Beli pedang tajam untuk berburu monster di Hutan Misterius?'
       },
       {
         id: 'paman_sam',
@@ -167,16 +250,16 @@ class FarmManager {
         timer: 3.5,
         targetX: 37 * 16,
         targetY: 19 * 16,
-        dialog: 'Angin danau sepoi-sepoi sangat tenang! Beli alat pancing bambu untuk mencari ikan segar di sini!'
+        dialog: 'Angin danau sangat sepoi-sepoi! Beli alat pancing bambu untuk mencari ikan segar di sini!'
       },
       {
         id: 'mbah_dukun',
         name: 'Mbah Dukun (Kontraktor)',
         role: 'bot_elder',
         x: 11 * 16,
-        y: 15 * 16,
+        y: 14 * 16,
         originX: 11 * 16,
-        originY: 15 * 16,
+        originY: 14 * 16,
         houseLocation: null,
         doorX: null,
         doorY: null,
@@ -186,7 +269,7 @@ class FarmManager {
         anim: 0,
         timer: 2.8,
         targetX: 11 * 16,
-        targetY: 15 * 16,
+        targetY: 14 * 16,
         dialog: 'Hehehe... Butuh pembantu otomatis di kebun? Bayar koin dan panggil Slimey atau Boni untuk bekerja!'
       }
     ];
@@ -222,44 +305,44 @@ class FarmManager {
     // 1. Cobblestone Village Pathways
     for (let x = 2; x <= 45; x++) this.grid[9][x].type = 'path';
     for (let x = 2; x <= 45; x++) this.grid[18][x].type = 'path';
-    for (let y = 9; y <= 27; y++) this.grid[y][23].type = 'path';
+    for (let y = 9; y <= 27; y++) this.grid[y][24].type = 'path';
     for (let y = 18; y <= 27; y++) {
-      this.grid[y][8].type = 'path';
-      this.grid[y][17].type = 'path';
-      this.grid[y][26].type = 'path';
+      this.grid[y][9].type = 'path';
+      this.grid[y][18].type = 'path';
+      this.grid[y][27].type = 'path';
     }
 
-    // 2. MC House Footprint (Top Center x: 20..26, y: 3..8)
+    // 2. MC House Footprint (Top Center x: 21..27, y: 3..8)
     for (let y = 3; y <= 8; y++) {
-      for (let x = 20; x <= 26; x++) {
+      for (let x = 21; x <= 27; x++) {
         this.grid[y][x].type = 'building';
-        this.grid[y][x].collidable = (y !== 8 || x !== 23); // Door at (23, 8)
+        this.grid[y][x].collidable = (y !== 8 || x !== 24); // Door at (24, 8)
       }
     }
-    this.grid[8][22].type = 'chest'; this.grid[8][22].collidable = true;
-    this.grid[8][24].type = 'sell_bin'; this.grid[8][24].collidable = true;
+    this.grid[8][23].type = 'chest'; this.grid[8][23].collidable = true;
+    this.grid[8][25].type = 'sell_bin'; this.grid[8][25].collidable = true;
 
-    // 3. Toko Pak Budi (x: 6..10, y: 20..24)
+    // 3. Toko Pak Budi (x: 7..11, y: 20..24)
     for (let y = 20; y <= 24; y++) {
-      for (let x = 6; x <= 10; x++) {
+      for (let x = 7; x <= 11; x++) {
         this.grid[y][x].type = 'building';
-        this.grid[y][x].collidable = (y !== 24 || x !== 8);
-      }
-    }
-
-    // 4. Mak Siti Ranch House (x: 15..19, y: 20..24)
-    for (let y = 20; y <= 24; y++) {
-      for (let x = 15; x <= 19; x++) {
-        this.grid[y][x].type = 'building';
-        this.grid[y][x].collidable = (y !== 24 || x !== 17);
+        this.grid[y][x].collidable = (y !== 24 || x !== 9);
       }
     }
 
-    // 5. Pandai Besi Borin (x: 24..28, y: 20..24)
+    // 4. Mak Siti Ranch House (x: 16..20, y: 20..24)
     for (let y = 20; y <= 24; y++) {
-      for (let x = 24; x <= 28; x++) {
+      for (let x = 16; x <= 20; x++) {
         this.grid[y][x].type = 'building';
-        this.grid[y][x].collidable = (y !== 24 || x !== 26);
+        this.grid[y][x].collidable = (y !== 24 || x !== 18);
+      }
+    }
+
+    // 5. Pandai Besi Borin (x: 25..29, y: 20..24)
+    for (let y = 20; y <= 24; y++) {
+      for (let x = 25; x <= 29; x++) {
+        this.grid[y][x].type = 'building';
+        this.grid[y][x].collidable = (y !== 24 || x !== 27);
       }
     }
 
@@ -274,19 +357,24 @@ class FarmManager {
     }
     this.grid[8][7].type = 'path'; this.grid[8][7].collidable = false; // Pasture gate
 
-    // 7. Farming Soil Beds (x: 14..21 & 25..32, y: 11..16)
+    // 7. Farming Soil Beds (x: 14..21 & 27..34, y: 11..16)
     for (let y = 11; y <= 16; y++) {
       for (let x = 14; x <= 21; x++) { this.grid[y][x].type = 'farmland'; this.grid[y][x].tilled = true; }
-      for (let x = 25; x <= 32; x++) { this.grid[y][x].type = 'farmland'; this.grid[y][x].tilled = true; }
+      for (let x = 27; x <= 34; x++) { this.grid[y][x].type = 'farmland'; this.grid[y][x].tilled = true; }
     }
-    this.grid[11][23].type = 'well'; this.grid[11][23].collidable = true;
+    this.grid[12][24].type = 'well'; this.grid[12][24].collidable = true;
 
-    // 8. Scenic Lake & Pier on East (x: 36..46, y: 12..28)
+    // 8. Scenic Lake & Pier on East (x: 36..46, y: 12..28) - 100% CLEAN BLUE WATER!
     for (let y = 12; y <= 28; y++) {
-      for (let x = 36; x <= 46; x++) { this.grid[y][x].type = 'water'; this.grid[y][x].collidable = true; }
+      for (let x = 36; x <= 46; x++) {
+        this.grid[y][x].type = 'water';
+        this.grid[y][x].collidable = true;
+      }
     }
-    for (let x = 36; x <= 41; x++) {
-      this.grid[20][x].type = 'bridge'; this.grid[20][x].collidable = false;
+    // Wooden bridge tiles across water
+    for (let x = 36; x <= 40; x++) {
+      this.grid[19][x].type = 'bridge';
+      this.grid[19][x].collidable = false;
     }
 
     // 9. Gate to Mystic Woods (North East)
@@ -294,27 +382,28 @@ class FarmManager {
       this.grid[1][x].type = 'portal_woods'; this.grid[1][x].collidable = false;
     }
 
-    // Spawn Resource Nodes (Mineable Rocks & Choppable Logs/Stumps)
+    // Spawn Natural Resource Nodes (Cleanly placed, no overlap!)
     this.initResourceNodes();
 
-    // Starter crop
+    // Starter crop: Wortel & Kubis (starts at stage 1 seedling, NOT instant pumpkin!)
     this.plantCrop(16, 12, 'carrot');
-    this.plantCrop(17, 12, 'carrot');
+    this.plantCrop(17, 12, 'cabbage');
     this.grid[12][16].watered = true;
+    this.grid[12][17].watered = true;
   }
 
   initResourceNodes() {
     this.resourceNodes = [
-      // Mineable Rocks
-      { id: 'r1', type: 'rock', x: 4, y: 15, hp: 3, maxHp: 3, respawn: 0 },
-      { id: 'r2', type: 'rock', x: 5, y: 19, hp: 3, maxHp: 3, respawn: 0 },
-      { id: 'r3', type: 'rock', x: 33, y: 22, hp: 3, maxHp: 3, respawn: 0 },
-      { id: 'r4', type: 'ore', x: 34, y: 25, hp: 4, maxHp: 4, respawn: 0 },
-      // Choppable Logs, Stumps & Trees
-      { id: 'w1', type: 'log', x: 13, y: 4, hp: 2, maxHp: 2, respawn: 0 },
-      { id: 'w2', type: 'stump', x: 28, y: 4, hp: 2, maxHp: 2, respawn: 0 },
-      { id: 'w3', type: 'tree_chop', x: 33, y: 4, hp: 4, maxHp: 4, respawn: 0 },
-      { id: 'w4', type: 'tree_chop', x: 3, y: 22, hp: 4, maxHp: 4, respawn: 0 }
+      // Mineable Rocks in natural rocky areas
+      { id: 'r1', type: 'rock', x: 4, y: 16, hp: 3, maxHp: 3, respawn: 0 },
+      { id: 'r2', type: 'rock', x: 5, y: 20, hp: 3, maxHp: 3, respawn: 0 },
+      { id: 'r3', type: 'rock', x: 32, y: 22, hp: 3, maxHp: 3, respawn: 0 },
+      { id: 'r4', type: 'ore', x: 33, y: 25, hp: 4, maxHp: 4, respawn: 0 },
+      // Choppable Logs & Stumps naturally placed under trees
+      { id: 'w1', type: 'log', x: 13, y: 2, hp: 2, maxHp: 2, respawn: 0 },
+      { id: 'w2', type: 'stump', x: 30, y: 2, hp: 2, maxHp: 2, respawn: 0 },
+      { id: 'w3', type: 'log', x: 33, y: 6, hp: 2, maxHp: 2, respawn: 0 },
+      { id: 'w4', type: 'stump', x: 3, y: 23, hp: 2, maxHp: 2, respawn: 0 }
     ];
   }
 
@@ -336,7 +425,7 @@ class FarmManager {
 
   // --- NPC HOUSES (DIFFERENT & FULLY FURNISHED!) ---
   initNPCHouses() {
-    // 1. Toko Pak Budi (14x10) - Filled with merchant goods & trade goods
+    // 1. Toko Pak Budi (14x10) - Filled with merchant goods
     this.houseBudi = this.createFurnishedRoom(14, 10, [
       { id: 'cabinet', x: 2, y: 2 },
       { id: 'bookshelf', x: 5, y: 2 },
@@ -399,20 +488,18 @@ class FarmManager {
 
     // Monsters (Aggressive Slimes and Skeletons)
     this.monsters = [
-      { id: 's1', type: 'slime', x: 12 * 16, y: 10 * 16, hp: 40, maxHp: 40, atk: 12, speed: 28, dir: 'down', anim: 0, reward: 20 },
-      { id: 's2', type: 'slime', x: 22 * 16, y: 14 * 16, hp: 40, maxHp: 40, atk: 12, speed: 28, dir: 'down', anim: 0, reward: 20 },
-      { id: 's3', type: 'slime', x: 28 * 16, y: 8 * 16, hp: 40, maxHp: 40, atk: 12, speed: 28, dir: 'down', anim: 0, reward: 20 },
-      { id: 'sk1', type: 'skeleton', x: 18 * 16, y: 22 * 16, hp: 65, maxHp: 65, atk: 18, speed: 34, dir: 'down', anim: 0, reward: 35 },
-      { id: 'sk2', type: 'skeleton', x: 30 * 16, y: 20 * 16, hp: 65, maxHp: 65, atk: 18, speed: 34, dir: 'down', anim: 0, reward: 35 }
+      { id: 's1', type: 'slime', x: 12 * 16, y: 10 * 16, hp: 40, maxHp: 40, atk: 10, speed: 28, dir: 'down', anim: 0, reward: 20 },
+      { id: 's2', type: 'slime', x: 22 * 16, y: 14 * 16, hp: 40, maxHp: 40, atk: 10, speed: 28, dir: 'down', anim: 0, reward: 20 },
+      { id: 's3', type: 'slime', x: 28 * 16, y: 8 * 16, hp: 40, maxHp: 40, atk: 10, speed: 28, dir: 'down', anim: 0, reward: 20 },
+      { id: 'sk1', type: 'skeleton', x: 18 * 16, y: 22 * 16, hp: 65, maxHp: 65, atk: 16, speed: 34, dir: 'down', anim: 0, reward: 35 },
+      { id: 'sk2', type: 'skeleton', x: 30 * 16, y: 20 * 16, hp: 65, maxHp: 65, atk: 16, speed: 34, dir: 'down', anim: 0, reward: 35 }
     ];
   }
 
-  // --- COLLISION CHECKING ---
   isCollidable(tx, ty, location = 'farm') {
     if (location === 'farm') {
       if (tx < 0 || tx >= this.cols || ty < 0 || ty >= this.rows) return true;
       if (this.grid[ty][tx].collidable) return true;
-      // Collision with resource nodes (rocks/logs)
       const hitsNode = this.resourceNodes.some(n => n.hp > 0 && n.x === tx && n.y === ty);
       if (hitsNode) return true;
       return false;
@@ -453,7 +540,7 @@ class FarmManager {
       const yieldOre = isOre ? (1 + Math.floor(Math.random() * 2)) : 0;
       this.chest.produce.stone = (this.chest.produce.stone || 0) + yieldStone;
       if (isOre) this.chest.produce.ore = (this.chest.produce.ore || 0) + yieldOre;
-      node.respawn = 60; // 60 seconds respawn
+      node.respawn = 60; // 60s respawn
       this.addLovePoints(5);
       return { destroyed: true, yield: yieldStone, oreYield: yieldOre, nodeType: node.type };
     }
@@ -466,7 +553,7 @@ class FarmManager {
 
     node.hp -= 1;
     if (node.hp <= 0) {
-      const yieldWood = node.type === 'tree_chop' ? 4 : 2;
+      const yieldWood = 2 + Math.floor(Math.random() * 2);
       this.chest.produce.wood = (this.chest.produce.wood || 0) + yieldWood;
       node.respawn = 60;
       this.addLovePoints(5);
@@ -491,9 +578,7 @@ class FarmManager {
   placeFurnitureMC(furnId, tx, ty) {
     const def = FURNITURE_DEFINITIONS[furnId];
     if (!def) return false;
-    // Boundary check
     if (tx < 1 || tx + def.w > this.houseMCWidth - 1 || ty < 3 || ty + def.h > this.houseMCHeight - 1) return false;
-    // Avoid blocking the main door at (8, 11)
     if (tx <= 8 && tx + def.w > 8 && ty + def.h >= 11) return false;
 
     this.placedFurnitureMC.push({ id: furnId, x: tx, y: ty });
@@ -517,7 +602,7 @@ class FarmManager {
     return false;
   }
 
-  // --- FARMING ACTIONS ---
+  // --- FARMING ACTIONS WITH REALISTIC TIMED GROWTH ---
   tillSoil(x, y) {
     if (this.currentLocation !== 'farm') return false;
     if (x < 0 || x >= this.cols || y < 0 || y >= this.rows) return false;
@@ -534,7 +619,7 @@ class FarmManager {
     const tile = this.grid[y][x];
     if (tile.tilled) {
       tile.watered = true;
-      tile.waterTimer = 60;
+      tile.waterTimer = 60; // 60s watering dampness
       return true;
     }
     return false;
@@ -545,7 +630,13 @@ class FarmManager {
     if (x < 0 || x >= this.cols || y < 0 || y >= this.rows) return false;
     const tile = this.grid[y][x];
     if (tile.tilled && !tile.crop) {
-      tile.crop = { id: cropId, stage: 0, progress: 0, ready: false };
+      tile.crop = {
+        id: cropId,
+        stage: 0,       // 0 to 5 stages
+        progress: 0,    // 0 to 100%
+        growTimer: 0,
+        ready: false
+      };
       return true;
     }
     return false;
@@ -570,22 +661,21 @@ class FarmManager {
 
   sellAllProduce() {
     let totalEarnings = 0;
-    // Crops
-    for (const [cropId, count] of Object.entries(this.chest.produce)) {
+    for (const [prodId, count] of Object.entries(this.chest.produce)) {
       if (count > 0) {
-        const def = CROP_DEFINITIONS[cropId];
+        const def = CROP_DEFINITIONS[prodId];
         let price = def ? def.sellPrice : 0;
-        if (cropId === 'wood') price = 4;
-        if (cropId === 'stone') price = 3;
-        if (cropId === 'ore') price = 15;
-        if (cropId === 'fish') price = 18;
-        if (cropId === 'milk') price = 24;
-        if (cropId === 'egg') price = 12;
-        if (cropId === 'wool') price = 20;
-        if (cropId === 'monster_gel') price = 16;
+        if (prodId === 'wood') price = 5;
+        if (prodId === 'stone') price = 4;
+        if (prodId === 'ore') price = 18;
+        if (prodId === 'fish') price = 22;
+        if (prodId === 'milk') price = 26;
+        if (prodId === 'egg') price = 14;
+        if (prodId === 'wool') price = 22;
+        if (prodId === 'monster_gel') price = 18;
 
         totalEarnings += count * price;
-        this.chest.produce[cropId] = 0;
+        this.chest.produce[prodId] = 0;
       }
     }
     this.coins += totalEarnings;
@@ -626,7 +716,14 @@ class FarmManager {
       const bounds = { minX: 3, maxX: 11, minY: 3, maxY: 10 };
       const rx = bounds.minX + Math.random() * (bounds.maxX - bounds.minX);
       const ry = bounds.minY + Math.random() * (bounds.maxY - bounds.minY);
-      this.ownedAnimals.push({ id: `${animalType}_${Date.now()}`, name, type: animalType, x: rx, y: ry });
+      this.ownedAnimals.push({
+        id: `${animalType}_${Date.now()}`,
+        name,
+        type: animalType,
+        x: rx,
+        y: ry,
+        produceTimer: 45 // 45s cooldown
+      });
       this.addLovePoints(20);
       this.autoSave();
       return true;
@@ -668,39 +765,60 @@ class FarmManager {
     return LOVE_LEVEL_TITLES[Math.min(this.loveLevel - 1, LOVE_LEVEL_TITLES.length - 1)];
   }
 
-  // --- UPDATE LOOP ---
+  // --- UPDATE LOOP WITH REALISTIC TIMERS (NOT INSTANT!) ---
   update(delta, playerPxX, playerPxY) {
-    // Time progression
     this.timeMinutes += delta * this.timeSpeed;
     if (this.timeMinutes >= 1440) {
       this.timeMinutes -= 1440;
       this.dayCount++;
     }
 
-    // Crop growth
+    // Realistic Timed Crop Growth
     for (let y = 0; y < this.rows; y++) {
       for (let x = 0; x < this.cols; x++) {
         const tile = this.grid[y][x];
+
+        // Watering timer countdown
         if (tile.watered) {
           tile.waterTimer -= delta;
           if (tile.waterTimer <= 0) tile.watered = false;
         }
 
+        // Crop growth progresses based on water and defined growTime
         if (tile.crop && !tile.crop.ready) {
           const def = CROP_DEFINITIONS[tile.crop.id];
           if (def) {
-            const speed = tile.watered ? 2.5 : 1.0;
-            tile.crop.progress += (delta / def.growTime) * 100 * speed;
-            tile.crop.stage = Math.min(4, Math.floor((tile.crop.progress / 100) * 5));
+            // Must be watered to grow fast, otherwise progresses very slowly
+            const growthRate = tile.watered ? 2.0 : 0.4;
+            tile.crop.growTimer += delta * growthRate;
+            tile.crop.progress = Math.min(100, (tile.crop.growTimer / def.growTime) * 100);
+
+            // 6 Stages (0, 1, 2, 3, 4, 5)
+            tile.crop.stage = Math.min(5, Math.floor((tile.crop.progress / 100) * 6));
+
             if (tile.crop.progress >= 100) {
               tile.crop.progress = 100;
-              tile.crop.stage = 4;
+              tile.crop.stage = 5;
               tile.crop.ready = true;
             }
           }
         }
       }
     }
+
+    // Animal Production Timers
+    this.ownedAnimals.forEach(a => {
+      if (a.produceTimer > 0) {
+        a.produceTimer -= delta;
+        if (a.produceTimer <= 0) {
+          // Ready to produce!
+          if (a.type === 'chicken') this.chest.produce.egg = (this.chest.produce.egg || 0) + 1;
+          else if (a.type === 'cow') this.chest.produce.milk = (this.chest.produce.milk || 0) + 1;
+          else if (a.type === 'sheep') this.chest.produce.wool = (this.chest.produce.wool || 0) + 1;
+          a.produceTimer = 50 + Math.random() * 20; // reset cooldown
+        }
+      }
+    });
 
     // Resource Nodes Respawn Timer
     this.resourceNodes.forEach(node => {
@@ -712,12 +830,12 @@ class FarmManager {
       }
     });
 
-    // Active NPC Wandering AI
+    // Active NPC Wandering
     if (this.currentLocation === 'farm') {
       this.updateNPCs(delta, playerPxX, playerPxY);
     }
 
-    // Monster AGGRO & Attack in Mystic Woods
+    // Monster AGGRO & Combat in Mystic Woods
     if (this.currentLocation === 'woods') {
       return this.updateMonstersAggro(delta, playerPxX, playerPxY);
     }
@@ -729,7 +847,6 @@ class FarmManager {
     this.npcs.forEach(npc => {
       const distToPlayer = Math.hypot(npc.x + 8 - px, npc.y + 8 - py);
 
-      // If player is talking or very close, stop and face player
       if (distToPlayer < 36) {
         npc.isMoving = false;
         const dx = px - (npc.x + 8);
@@ -742,10 +859,8 @@ class FarmManager {
       npc.timer -= delta;
       if (npc.timer <= 0) {
         npc.timer = 2.5 + Math.random() * 3.5;
-        // 45% chance to wander around shop, 55% chance to pause
         if (Math.random() < 0.45) {
           npc.isMoving = true;
-          // Pick a target within 32 pixels from origin
           const angle = Math.random() * Math.PI * 2;
           const radius = 10 + Math.random() * 24;
           npc.targetX = npc.originX + Math.cos(angle) * radius;
@@ -761,7 +876,7 @@ class FarmManager {
         const dist = Math.hypot(dx, dy);
 
         if (dist > 2) {
-          const step = 18 * delta; // gentle walking speed
+          const step = 18 * delta;
           npc.x += (dx / dist) * step;
           npc.y += (dy / dist) * step;
           npc.anim = (npc.anim + delta * 5) % 6;
@@ -783,14 +898,12 @@ class FarmManager {
       m.anim = (m.anim + delta * 6) % 4;
       const dist = Math.hypot(m.x + 16 - px, m.y + 16 - py);
 
-      // AGGRO when player approaches (within 75 pixels)
       if (dist < 75) {
         m.aggro = true;
         const dx = px - (m.x + 16);
         const dy = py - (m.y + 16);
         m.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
 
-        // Move towards player
         const step = m.speed * delta;
         const nx = m.x + (dx / dist) * step;
         const ny = m.y + (dy / dist) * step;
@@ -802,16 +915,14 @@ class FarmManager {
           m.y = ny;
         }
 
-        // Monster Attack player when touching (dist < 22)
         if (dist < 22) {
           if (!m.atkCooldown || m.atkCooldown <= 0) {
-            m.atkCooldown = 1.4; // 1.4s between attacks
+            m.atkCooldown = 1.4;
             playerHitDamage += m.atk;
           }
         }
       } else {
         m.aggro = false;
-        // Wander peacefully
         if (!m.timer || m.timer <= 0) {
           m.timer = 2 + Math.random() * 2.5;
           m.vx = (Math.random() - 0.5) * 16;
@@ -840,24 +951,24 @@ class FarmManager {
       const dist = Math.hypot(m.x + 16 - playerX, m.y + 16 - playerY);
       if (dist < 34) {
         m.hp -= damage;
-        // Pushback
         const pushDirX = m.x + 16 - playerX;
         const pushDirY = m.y + 16 - playerY;
         const pLen = Math.hypot(pushDirX, pushDirY) || 1;
-        m.x += (pushDirX / pLen) * 14;
-        m.y += (pushDirY / pLen) * 14;
+        m.x += (pushDirX / pLen) * 16;
+        m.y += (pushDirY / pLen) * 16;
 
         if (m.hp <= 0) {
           const earned = m.reward || 20;
           this.coins += earned;
           this.chest.produce.monster_gel = (this.chest.produce.monster_gel || 0) + 1;
           this.addLovePoints(15);
-          // Respawn monster at random position
+
+          const deadM = { ...m };
           m.hp = m.maxHp;
           m.x = (6 + Math.random() * 26) * 16;
           m.y = (6 + Math.random() * 20) * 16;
           this.autoSave();
-          return { hit: true, defeated: true, earned, monster: m };
+          return { hit: true, defeated: true, earned, monster: deadM };
         }
         return { hit: true, defeated: false, monster: m };
       }
@@ -865,9 +976,9 @@ class FarmManager {
     return null;
   }
 
-  // --- SMOOTH ROMANTIC DAY & NIGHT CYCLE ---
+  // --- DAY & NIGHT CYCLE ---
   getTimeOfDay() {
-    const hours = this.timeMinutes / 60; // 0..24
+    const hours = this.timeMinutes / 60;
     let phase = 'day';
     let label = 'Siang Cerah ☀️';
     let ambient = 'rgba(255, 255, 255, 0)';
@@ -875,7 +986,6 @@ class FarmManager {
     if (hours >= 4.5 && hours < 6.5) {
       phase = 'sunrise';
       label = 'Pagi Fajar 🌅';
-      // Smooth lerp from dark to warm golden sunrise
       const progress = (hours - 4.5) / 2.0;
       const alpha = 0.35 * (1 - progress);
       ambient = `rgba(255, 170, 90, ${alpha.toFixed(2)})`;
@@ -886,14 +996,12 @@ class FarmManager {
     } else if (hours >= 16.5 && hours < 19.0) {
       phase = 'sunset';
       label = 'Senja Romantis 🌇';
-      // Smooth lerp to deep sunset orange
       const progress = (hours - 16.5) / 2.5;
       const alpha = 0.08 + 0.24 * progress;
       ambient = `rgba(255, 120, 60, ${alpha.toFixed(2)})`;
     } else {
       phase = 'night';
       label = 'Malam Berbintang 🌙';
-      // Gentle romantic starry night ambient (not pitch black)
       ambient = 'rgba(18, 30, 75, 0.36)';
     }
 
@@ -924,7 +1032,7 @@ class FarmManager {
     }
 
     return {
-      version: 5,
+      version: 6,
       coins: this.coins,
       lovePoints: this.lovePoints,
       loveLevel: this.loveLevel,
@@ -973,7 +1081,7 @@ class FarmManager {
 
   autoSave() {
     try {
-      localStorage.setItem('kebun_cinta_save_v5', JSON.stringify(this.getSnapshot()));
+      localStorage.setItem('kebun_cinta_save_v6', JSON.stringify(this.getSnapshot()));
     } catch (e) {
       console.warn('Save error:', e);
     }
@@ -981,7 +1089,7 @@ class FarmManager {
 
   loadFromStorage() {
     try {
-      const str = localStorage.getItem('kebun_cinta_save_v5') || localStorage.getItem('kebun_cinta_save_v4');
+      const str = localStorage.getItem('kebun_cinta_save_v6') || localStorage.getItem('kebun_cinta_save_v5');
       if (str) this.applySnapshot(JSON.parse(str));
     } catch (e) {
       console.warn('Load error:', e);

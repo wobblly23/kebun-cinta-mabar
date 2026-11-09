@@ -1,4 +1,4 @@
-// js/game.js - Complete Romantic Farming, Mining, Woodcutting, Fishing, Combat & Housing Engine
+// js/game.js - Complete Romantic Farming Engine with Sunnyside Crops, Rich Particles, Smooth Housing & Combat
 
 class Game {
   constructor() {
@@ -16,12 +16,12 @@ class Game {
     this.player = {
       name: 'Zahy',
       role: 'boy',
-      x: 23 * 16,
+      x: 24 * 16,
       y: 10 * 16,
       dir: 'down',
       speed: 84,
       isMoving: false,
-      currentAction: 'idle', // 'idle' | 'action'
+      currentAction: 'idle',
       actionTimer: 0,
       slashTimer: 0,
       animTimer: 0,
@@ -31,12 +31,13 @@ class Game {
       emoteTimer: 0,
       isFishing: false,
       fishingTimer: 0,
-      fishingBite: false
+      fishingBite: false,
+      fishingRipples: []
     };
 
-    // Pet follower visual state
+    // Pet Follower
     this.pet = {
-      x: 23 * 16 - 20,
+      x: 24 * 16 - 20,
       y: 10 * 16,
       dir: 'right',
       anim: 0,
@@ -48,7 +49,7 @@ class Game {
       active: false,
       name: 'Aurel',
       role: 'girl',
-      x: 24 * 16,
+      x: 25 * 16,
       y: 10 * 16,
       dir: 'down',
       isMoving: false,
@@ -64,17 +65,19 @@ class Game {
     this.keys = {};
     this.touchJoystick = { active: false, startX: 0, startY: 0, dx: 0, dy: 0 };
 
+    // Rich Particle & Visual Effects Engine
+    this.particles = [];
     this.floatingTexts = [];
-    this.sparkles = [];
     this.notifications = [];
     this.activePrompt = null;
     this.furnitureEditMode = false;
     this.selectedFurnToPlace = null;
     this.screenFlashRed = 0;
     this.screenFlashGreen = 0;
+    this.screenFadeBlack = 0;
     this.chatMinimized = false;
 
-    // Kunang-kunang malam
+    // Romantic Night Fireflies
     this.fireflies = [];
     for (let i = 0; i < 30; i++) {
       this.fireflies.push({
@@ -114,28 +117,22 @@ class Game {
       // Monsters
       slime_monster: 'assets/monsters/slime_monster.png',
       skeleton_monster: 'assets/monsters/skeleton_monster.png',
-      // Crops & Items
-      plants: 'assets/crops/plants.png',
-      items: 'assets/crops/items.png',
-      // Tiles & Buildings
+      // Terrain & Buildings
       grass: 'assets/tiles/grass.png',
       farmland: 'assets/tiles/farmland.png',
       path: 'assets/tiles/path.png',
       water: 'assets/tiles/water.png',
-      house: 'assets/tiles/house.png',
-      house_barn: 'assets/buildings/house_barn.png',
-      house_cottage: 'assets/buildings/house_cottage.png',
+      house_blue: 'assets/buildings/house_blue.png',
+      house_red: 'assets/buildings/house_red.png',
       tree: 'assets/tiles/tree.png',
       fences: 'assets/tiles/fences.png',
-      bridge: 'assets/tiles/bridge.png',
-      bridge_fancy: 'assets/decor/bridge_fancy.png',
+      bridge_horizontal: 'assets/decor/bridge_horizontal.png',
       boat: 'assets/decor/boat.png',
       chest: 'assets/tiles/chest.png',
       floor_wood: 'assets/tiles/floor_wood.png',
       wall_wood: 'assets/tiles/wall_wood.png',
-      interior_tiles: 'assets/tiles/interior_tiles.png',
       mystic_grass: 'assets/tiles/mystic_grass.png',
-      // Environment Decor & Resource Nodes
+      // Clean Transparent Environment Decor & Resources
       rock_node: 'assets/decor/rock_node.png',
       log_wood: 'assets/decor/log_wood.png',
       stump: 'assets/decor/stump.png',
@@ -144,10 +141,9 @@ class Game {
       hay_bale: 'assets/decor/hay_bale.png',
       trough: 'assets/decor/trough.png',
       water_lilies: 'assets/decor/water_lilies.png',
-      water_reeds: 'assets/decor/water_reeds.png',
       water_rocks: 'assets/decor/water_rocks.png',
       bush_flowers: 'assets/decor/bush_flowers.png',
-      // Real Pixel Art Furniture
+      // Real Furniture
       bed_double: 'assets/furniture/bed_double.png',
       dining_table: 'assets/furniture/dining_table.png',
       fireplace: 'assets/furniture/fireplace.png',
@@ -155,9 +151,16 @@ class Game {
       bookshelf: 'assets/furniture/bookshelf.png',
       cabinet: 'assets/furniture/cabinet.png',
       plant: 'assets/furniture/plant.png',
-      rug: 'assets/furniture/rug.png',
-      table_small: 'assets/furniture/table_small.png'
+      rug: 'assets/furniture/rug.png'
     };
+
+    // Load Sunnyside Individual Stage Sprites for 8 Crops (00 to 05)
+    const cropTypes = ['carrot', 'potato', 'cabbage', 'beetroot', 'cauliflower', 'pumpkin', 'radish', 'wheat'];
+    cropTypes.forEach(c => {
+      for (let s = 0; s <= 5; s++) {
+        toLoad[`crop_${c}_${s}`] = `assets/crops_sunnyside/${c}_0${s}.png`;
+      }
+    });
 
     let loadedCount = 0;
     const total = Object.keys(toLoad).length;
@@ -204,17 +207,15 @@ class Game {
 
       this.keys[e.key.toLowerCase()] = true;
 
-      // Tool Hotbar Shortcuts (1-9)
       const keyNum = parseInt(e.key);
       if (keyNum >= 1 && keyNum <= 9) {
         const toolMap = [
           'hoe', 'water', 'axe', 'pickaxe', 'fishing_rod',
-          'sword_iron', 'seed_carrot', 'seed_strawberry', 'flower'
+          'sword_iron', 'seed_carrot', 'seed_cabbage', 'flower'
         ];
         this.selectTool(toolMap[keyNum - 1]);
       }
 
-      // Actions
       if (e.key === ' ' || e.key.toLowerCase() === 'j') {
         e.preventDefault();
         this.performToolAction();
@@ -261,7 +262,6 @@ class Game {
             this.showNotification('Tidak bisa meletakkan di sini (menghalangi pintu/dinding)!');
           }
         } else {
-          // Remove existing furniture on click
           const ok = this.farm.removeFurnitureMC(tx, ty);
           if (ok) {
             this.showNotification('Perabotan disimpan kembali ke tas! 📦');
@@ -271,7 +271,6 @@ class Game {
         return;
       }
 
-      // Quick interact on click near player
       const ptx = Math.floor((this.player.x + 16) / 16);
       const pty = Math.floor((this.player.y + 24) / 16);
       if (Math.abs(ptx - tx) <= 1 && Math.abs(pty - ty) <= 1) {
@@ -359,7 +358,7 @@ class Game {
   }
 
   cycleNextTool() {
-    const tools = ['hoe', 'water', 'axe', 'pickaxe', 'fishing_rod', 'sword_iron', 'seed_carrot', 'seed_strawberry', 'flower'];
+    const tools = ['hoe', 'water', 'axe', 'pickaxe', 'fishing_rod', 'sword_iron', 'seed_carrot', 'seed_cabbage', 'flower'];
     const idx = tools.indexOf(this.player.selectedTool);
     this.selectTool(tools[(idx + 1) % tools.length]);
   }
@@ -381,10 +380,9 @@ class Game {
     const py = this.player.y + 16;
     const loc = this.farm.currentLocation;
 
-    // Inside MC House
     if (loc === 'house_mc') {
       if (Math.hypot(px - (8 * 16 + 8), py - (11 * 16 + 8)) < 24) {
-        this.activePrompt = { text: 'Keluar ke Desa [E] 🚪', action: () => this.teleport('farm', 23, 9) };
+        this.activePrompt = { text: 'Keluar ke Desa [E] 🚪', action: () => this.teleport('farm', 24, 9) };
         return;
       }
       const nearBed = this.farm.placedFurnitureMC.some(f => f.id === 'bed_double' && Math.hypot(px - (f.x * 16 + 16), py - (f.y * 16 + 16)) < 36);
@@ -392,14 +390,13 @@ class Game {
         this.activePrompt = { text: 'Tidur Berdua Menyambut Pagi [E] 🛏️❤️', action: () => this.sleepInBed() };
         return;
       }
-      this.activePrompt = { text: 'Atur Perabotan [E] 🪑', action: () => this.toggleFurnitureEdit() };
+      this.activePrompt = { text: 'Atur Perabotan Rumah [E] 🪑', action: () => this.toggleFurnitureEdit() };
       return;
     }
 
-    // Inside NPC Houses
     if (loc.startsWith('house_')) {
       const room = loc === 'house_budi' ? this.farm.houseBudi : (loc === 'house_siti' ? this.farm.houseSiti : this.farm.houseBlacksmith);
-      const exitDoor = loc === 'house_budi' ? { x: 8, y: 25 } : (loc === 'house_siti' ? { x: 17, y: 25 } : { x: 26, y: 25 });
+      const exitDoor = loc === 'house_budi' ? { x: 9, y: 25 } : (loc === 'house_siti' ? { x: 18, y: 25 } : { x: 27, y: 25 });
       if (Math.hypot(px - (room.door.x * 16 + 8), py - (room.door.y * 16 + 8)) < 24) {
         this.activePrompt = { text: 'Keluar ke Desa [E] 🚪', action: () => this.teleport('farm', exitDoor.x, exitDoor.y) };
         return;
@@ -408,7 +405,6 @@ class Game {
       return;
     }
 
-    // Inside Mystic Woods
     if (loc === 'woods') {
       if (Math.hypot(px - (2 * 16 + 8), py - (15 * 16 + 8)) < 28) {
         this.activePrompt = { text: 'Kembali ke Desa Damai [E] 🏡', action: () => this.teleport('farm', 44, 2) };
@@ -423,51 +419,43 @@ class Game {
       return;
     }
 
-    // Outdoor Farm / Village
-    // 1. Gate to Mystic Woods (44..46, 1)
+    // Outdoor Village
     if (Math.hypot(px - (45 * 16 + 8), py - (1 * 16 + 8)) < 26) {
       this.activePrompt = { text: 'Masuk Hutan Misterius (Monster) [E] 🌲⚔️', action: () => this.teleport('woods', 3, 15) };
       return;
     }
-
-    // 2. Door to MC House (23, 8)
-    if (Math.hypot(px - (23 * 16 + 8), py - (8 * 16 + 8)) < 24) {
+    if (Math.hypot(px - (24 * 16 + 8), py - (8 * 16 + 8)) < 24) {
       this.activePrompt = { text: 'Masuk Rumah Utama [E] 🏡', action: () => this.teleport('house_mc', 8, 10) };
       return;
     }
-
-    // 3. Doors to NPC Buildings
-    if (Math.hypot(px - (8 * 16 + 8), py - (24 * 16 + 8)) < 22) {
+    if (Math.hypot(px - (9 * 16 + 8), py - (24 * 16 + 8)) < 22) {
       this.activePrompt = { text: 'Masuk Toko Pak Budi [E] 🛒', action: () => this.teleport('house_budi', 7, 8) };
       return;
     }
-    if (Math.hypot(px - (17 * 16 + 8), py - (24 * 16 + 8)) < 22) {
+    if (Math.hypot(px - (18 * 16 + 8), py - (24 * 16 + 8)) < 22) {
       this.activePrompt = { text: 'Masuk Peternakan Mak Siti [E] 🐮', action: () => this.teleport('house_siti', 7, 8) };
       return;
     }
-    if (Math.hypot(px - (26 * 16 + 8), py - (24 * 16 + 8)) < 22) {
+    if (Math.hypot(px - (27 * 16 + 8), py - (24 * 16 + 8)) < 22) {
       this.activePrompt = { text: 'Masuk Toko Senjata Borin [E] ⚔️', action: () => this.teleport('house_blacksmith', 7, 8) };
       return;
     }
 
-    // 4. NPCs in village (wander around)
     const npc = this.farm.npcs.find(n => Math.hypot(n.x + 8 - px, n.y + 8 - py) < 34);
     if (npc) {
       this.activePrompt = { text: `Bicara dengan ${npc.name.split(' ')[0]} [E] 💬`, action: () => this.openNPCDialog(npc) };
       return;
     }
 
-    // 5. Shared Chest & Sell Bin
-    if (Math.hypot(px - (22 * 16 + 8), py - (8 * 16 + 8)) < 24) {
+    if (Math.hypot(px - (23 * 16 + 8), py - (8 * 16 + 8)) < 24) {
       this.activePrompt = { text: 'Buka Peti Bersama [E] 📦', action: () => this.openChestModal() };
       return;
     }
-    if (Math.hypot(px - (24 * 16 + 8), py - (8 * 16 + 8)) < 24) {
+    if (Math.hypot(px - (25 * 16 + 8), py - (8 * 16 + 8)) < 24) {
       this.activePrompt = { text: 'Jual Semua Hasil Panen & Monster [E] 🪙', action: () => this.sellProduce() };
       return;
     }
 
-    // 6. Resource Nodes (Rocks / Trees in front of player)
     const facingNode = this.farm.resourceNodes.find(n => n.hp > 0 && n.x === tx && n.y === ty);
     if (facingNode) {
       if (facingNode.type === 'rock' || facingNode.type === 'ore') {
@@ -479,26 +467,22 @@ class Game {
       }
     }
 
-    // 7. Scenic Lake Fishing (Facing Water)
     if (tx >= 0 && tx < this.farm.cols && ty >= 0 && ty < this.farm.rows && this.farm.grid[ty][tx].type === 'water') {
       this.activePrompt = { text: 'Mulai Memancing Ikan [Spasi/E] 🎣', action: () => this.startFishing() };
       return;
     }
 
-    // 8. Pet Animals in Pasture
     const animal = this.animalManager.animals.find(a => Math.hypot(a.x - px, a.y - py) < 28);
     if (animal) {
-      this.activePrompt = { text: `Elus ${animal.name} [E] ❤️`, action: () => animal.pet() };
+      this.activePrompt = { text: `Elus & Beri Makan ${animal.name} [E] ❤️`, action: () => animal.pet() };
       return;
     }
 
-    // 9. Harvest ready crops
     if (tx >= 0 && tx < this.farm.cols && ty >= 0 && ty < this.farm.rows && this.farm.grid[ty][tx].crop?.ready) {
       this.activePrompt = { text: 'Petik Panen [E] 🧺', action: () => this.harvestTile(tx, ty) };
       return;
     }
 
-    // 10. Water dry farmland
     if (tx >= 0 && tx < this.farm.cols && ty >= 0 && ty < this.farm.rows && this.farm.grid[ty][tx].tilled && !this.farm.grid[ty][tx].watered) {
       this.activePrompt = { text: 'Siram Air Tanah [Spasi] 💧', action: () => this.waterTile(tx, ty) };
       return;
@@ -534,7 +518,8 @@ class Game {
 
   sleepInBed() {
     this.farm.sleepTogether();
-    this.showNotification('Tidur lelap bersama pasangan... Pagi hari telah tiba! ☀️💖');
+    this.screenFadeBlack = 1.0;
+    this.showNotification('Tidur lelap berdua... Selamat pagi kekasihku! ☀️💖');
     this.network.send({ type: 'sleep_sync', day: this.farm.dayCount, time: this.farm.timeMinutes });
     this.updateHUD();
   }
@@ -588,7 +573,6 @@ class Game {
     const { tx, ty } = this.getTargetTileCoords();
     const loc = this.farm.currentLocation;
 
-    // In Mystic Woods -> Sword Attack on Monsters!
     if (loc === 'woods' || this.player.selectedTool.startsWith('sword_')) {
       this.player.currentAction = 'action';
       this.player.actionTimer = 0.22;
@@ -599,8 +583,9 @@ class Game {
       const res = this.farm.attackMonster(this.player.x + 16, this.player.y + 16, dmg);
       if (res) {
         if (res.defeated) {
+          this.createMonsterDeathPoof(res.monster.x + 16, res.monster.y + 16);
           this.showDamage(res.monster.x, res.monster.y, `KO! +${res.earned}🪙`, '#f1c40f');
-          this.showNotification(`Monster dikalahkan! Mendapatkan +${res.earned} Koin Cinta! ⚔️🎉`);
+          this.showNotification(`Monster dikalahkan! +${res.earned} Koin Cinta! ⚔️🎉`);
         } else {
           this.showDamage(res.monster.x, res.monster.y, `-${dmg}💥`, '#e74c3c');
         }
@@ -619,36 +604,27 @@ class Game {
     this.player.currentAction = 'action';
     this.player.actionTimer = 0.22;
 
-    // 1. Cangkul
     if (tool === 'hoe') {
       const ok = this.farm.tillSoil(tx, ty);
       if (ok) {
         if (window.soundSystem) window.soundSystem.playTill();
-        this.showSparkle(tx * 16 + 8, ty * 16 + 8, '🌾');
+        this.createDirtParticles(tx * 16 + 8, ty * 16 + 8);
         this.network.send({ type: 'action_till', x: tx, y: ty });
       }
-    }
-    // 2. Penyiram
-    else if (tool === 'water') {
+    } else if (tool === 'water') {
       this.waterTile(tx, ty);
-    }
-    // 3. Kapak (Chop Wood)
-    else if (tool === 'axe') {
+    } else if (tool === 'axe') {
       this.chopResource(tx, ty);
-    }
-    // 4. Beliung (Mine Rock)
-    else if (tool === 'pickaxe') {
+    } else if (tool === 'pickaxe') {
       this.mineResource(tx, ty);
-    }
-    // 5. Menanam Bibit
-    else if (tool.startsWith('seed_')) {
+    } else if (tool.startsWith('seed_')) {
       const cropId = tool.replace('seed_', '');
       if ((this.farm.chest.seeds[cropId] || 0) > 0) {
         const ok = this.farm.plantCrop(tx, ty, cropId);
         if (ok) {
           this.farm.chest.seeds[cropId]--;
           if (window.soundSystem) window.soundSystem.playPlant();
-          this.showSparkle(tx * 16 + 8, ty * 16 + 8, '🌱');
+          this.createPlantParticles(tx * 16 + 8, ty * 16 + 8);
           this.network.send({ type: 'action_plant', x: tx, y: ty, cropId });
         } else {
           this.showNotification('Cangkul tanah dulu sebelum menanam bibit! 🌾');
@@ -656,13 +632,9 @@ class Game {
       } else {
         this.showNotification(`Bibit ${cropId} habis! Beli di Toko Pak Budi ya~ 🛒`);
       }
-    }
-    // 6. Pancing
-    else if (tool === 'fishing_rod') {
+    } else if (tool === 'fishing_rod') {
       this.startFishing();
-    }
-    // 7. Bunga Cinta
-    else if (tool === 'flower') {
+    } else if (tool === 'flower') {
       this.triggerCoupleKiss(false);
       this.showEmote('🌸');
     }
@@ -674,7 +646,7 @@ class Game {
     const res = this.farm.chopWood(tx, ty);
     if (res) {
       if (window.soundSystem) window.soundSystem.playSwordSwing();
-      this.showSparkle(tx * 16 + 8, ty * 16 + 8, '🪓');
+      this.createWoodChips(tx * 16 + 8, ty * 16 + 8);
       if (res.destroyed) {
         this.showNotification(`Mendapatkan +${res.yield} Kayu! Disimpan di Peti 🪵✨`);
         this.showDamage(tx * 16, ty * 16 - 8, `+${res.yield}🪵`, '#2ed573');
@@ -692,7 +664,7 @@ class Game {
     const res = this.farm.mineRock(tx, ty);
     if (res) {
       if (window.soundSystem) window.soundSystem.playTill();
-      this.showSparkle(tx * 16 + 8, ty * 16 + 8, '⛏️');
+      this.createStoneGlints(tx * 16 + 8, ty * 16 + 8);
       if (res.destroyed) {
         const bonusOre = res.oreYield > 0 ? ` & +${res.oreYield} Emas 💎` : '';
         this.showNotification(`Mendapatkan +${res.yield} Batu${bonusOre}! Disimpan di Peti 🪨✨`);
@@ -711,7 +683,7 @@ class Game {
     const ok = this.farm.waterSoil(tx, ty);
     if (ok) {
       if (window.soundSystem) window.soundSystem.playWater();
-      this.showSparkle(tx * 16 + 8, ty * 16 + 8, '💧');
+      this.createWaterSplashes(tx * 16 + 8, ty * 16 + 8);
       this.network.send({ type: 'action_water', x: tx, y: ty });
     }
   }
@@ -720,7 +692,8 @@ class Game {
     const def = this.farm.harvestCrop(tx, ty);
     if (def) {
       if (window.soundSystem) window.soundSystem.playHarvest();
-      this.showSparkle(tx * 16 + 8, ty * 16 + 8, def.icon);
+      this.createHarvestLeafs(tx * 16 + 8, ty * 16 + 8);
+      this.showDamage(tx * 16, ty * 16 - 8, `+1 ${def.icon}`, '#2ed573');
       this.showNotification(`Memanen ${def.name}! Disimpan di Peti 🧺✨`);
       this.network.send({ type: 'action_harvest', x: tx, y: ty });
       this.updateHUD();
@@ -733,7 +706,6 @@ class Game {
       return;
     }
     const { tx, ty } = this.getTargetTileCoords();
-    // Harvest if ready
     if (this.farm.currentLocation === 'farm' && this.farm.grid[ty] && this.farm.grid[ty][tx]?.crop?.ready) {
       this.harvestTile(tx, ty);
     }
@@ -752,7 +724,8 @@ class Game {
   }
 
   playerFaintAndRespawn() {
-    this.showNotification('Kamu pingsan diserang monster! Diselamatkan kembali ke kasur rumah... 🛏️❤️');
+    this.screenFadeBlack = 1.2;
+    this.showNotification('Kamu pingsan akibat serangan monster! Diselamatkan ke ranjang rumah... 🛏️❤️');
     this.farm.playerHp = this.farm.playerMaxHp;
     this.teleport('house_mc', 8, 8);
     this.updateHUD();
@@ -771,13 +744,13 @@ class Game {
     if (npc.role === 'merchant') {
       const btnSeeds = document.createElement('button');
       btnSeeds.className = 'btn-buy';
-      btnSeeds.textContent = '🌱 Beli Bibit Unggul';
+      btnSeeds.textContent = '🌱 Beli Bibit Sayur & Bunga';
       btnSeeds.onclick = () => { modal.classList.add('hidden'); this.openStoreModal('seeds'); };
       actionsContainer.appendChild(btnSeeds);
 
       const btnFurn = document.createElement('button');
       btnFurn.className = 'btn-buy';
-      btnFurn.textContent = '🪑 Beli Perabotan Rumah';
+      btnFurn.textContent = '🪑 Beli Perabotan Rumah MC';
       btnFurn.onclick = () => { modal.classList.add('hidden'); this.openStoreModal('furniture'); };
       actionsContainer.appendChild(btnFurn);
     } else if (npc.role === 'rancher') {
@@ -789,7 +762,7 @@ class Game {
 
       const btnPets = document.createElement('button');
       btnPets.className = 'btn-buy';
-      btnPets.textContent = '🐾 Beli Hewan Peliharaan (Mengikuti MC)';
+      btnPets.textContent = '🐾 Beli Peliharaan (Mengikuti MC)';
       btnPets.onclick = () => { modal.classList.add('hidden'); this.openStoreModal('pets'); };
       actionsContainer.appendChild(btnPets);
     } else if (npc.role === 'blacksmith') {
@@ -846,7 +819,7 @@ class Game {
           <div style="font-size:28px;">${def.icon}</div>
           <div style="flex:1;">
             <strong>${def.name}</strong>
-            <p style="font-size:11px; color:#57606f;">Tumbuh ${def.growTime} detik • Jual ${def.sellPrice}🪙</p>
+            <p style="font-size:11px; color:#57606f;">Tumbuh ${def.growTime} detik • Jual ${def.sellPrice}🪙 • ${def.desc}</p>
           </div>
           <button class="btn-buy">${def.seedPrice} 🪙</button>
         `;
@@ -886,7 +859,7 @@ class Game {
     } else if (category === 'animals') {
       title.textContent = '🐮 Peternakan Mak Siti';
       const animals = [
-        { type: 'chicken', name: 'Ayam Petelur', price: 60, icon: '🐔', desc: 'Menghasilkan telur segar setiap pagi.' },
+        { type: 'chicken', name: 'Ayam Petelur', price: 60, icon: '🐔', desc: 'Menghasilkan telur segar secara berkala.' },
         { type: 'cow', name: 'Sapi Perah', price: 120, icon: '🐮', desc: 'Menghasilkan susu lezat bernilai jual tinggi.' },
         { type: 'sheep', name: 'Domba Wol', price: 100, icon: '🐑', desc: 'Menghasilkan wol hangat untuk selimut.' }
       ];
@@ -903,7 +876,7 @@ class Game {
         `;
         item.querySelector('button').onclick = () => {
           if (this.farm.buyAnimal(a.type, a.name, a.price)) {
-            this.showNotification(`Membeli ${a.name}! Berada di padang rumput peternakan Mak Siti ❤️`);
+            this.showNotification(`Membeli ${a.name}! Berada di padang rumput Mak Siti ❤️`);
             this.updateHUD();
           } else {
             this.showNotification('Koin tidak mencukupi! 🪙');
@@ -967,10 +940,12 @@ class Game {
         else if (prodId === 'stone') { name = 'Batu Alam'; icon = '🪨'; }
         else if (prodId === 'ore') { name = 'Bijih Emas'; icon = '💎'; }
         else if (prodId === 'fish') { name = 'Ikan Segar'; icon = '🐟'; }
+        else if (prodId === 'egg') { name = 'Telur Segar'; icon = '🥚'; }
+        else if (prodId === 'milk') { name = 'Susu Sapi'; icon = '🥛'; }
+        else if (prodId === 'wool') { name = 'Wol Lembut'; icon = '🧶'; }
         else if (prodId === 'monster_gel') { name = 'Gel Monster'; icon = '🧪'; }
 
-        // Allow eating crops to heal HP!
-        const canEat = CROP_DEFINITIONS[prodId] ? `<button class="btn-eat" style="margin-left:6px; font-size:10px; padding:2px 6px; background:#2ed573; border:none; border-radius:6px; color:#fff; cursor:pointer;" onclick="game.eatProduceItem('${prodId}')">Makan ❤️</button>` : '';
+        const canEat = (CROP_DEFINITIONS[prodId] || prodId === 'fish') ? `<button class="btn-eat" style="margin-left:6px; font-size:10px; padding:2px 6px; background:#2ed573; border:none; border-radius:6px; color:#fff; cursor:pointer;" onclick="game.eatProduceItem('${prodId}')">Makan ❤️</button>` : '';
 
         produceList.innerHTML += `<div class="chest-item"><span>${icon} ${name}:</span> <div><strong>${count}</strong>${canEat}</div></div>`;
       }
@@ -988,7 +963,7 @@ class Game {
     if (res) {
       if (window.soundSystem) window.soundSystem.playHarvest();
       this.screenFlashGreen = 0.3;
-      this.showSparkle(this.player.x + 16, this.player.y, '❤️');
+      this.createHealParticles(this.player.x + 16, this.player.y);
       this.showNotification(`Memakan ${res.def.name}! Nyawa bertambah +${res.heal} ❤️`);
       this.openChestModal();
       this.updateHUD();
@@ -1015,6 +990,7 @@ class Game {
     if (this.player.isFishing) {
       if (this.player.fishingBite) {
         if (window.soundSystem) window.soundSystem.playHarvest();
+        this.createWaterSplashes(this.player.x + 28, this.player.y + 16);
         this.farm.chest.produce.fish = (this.farm.chest.produce.fish || 0) + 1;
         this.farm.addLovePoints(12);
         this.showNotification('Berhasil menangkap Ikan Danau Segar! Disimpan di Peti 🐟🎉');
@@ -1031,7 +1007,130 @@ class Game {
     this.player.isFishing = true;
     this.player.fishingTimer = 2.5 + Math.random() * 3.5;
     this.player.fishingBite = false;
+    this.createWaterSplashes(this.player.x + 28, this.player.y + 16);
     this.showNotification('Melempar kail ke danau... Tunggu sampai tanda [!] muncul! 🎣');
+  }
+
+  // --- RICH VISUAL PARTICLES ENGINE ---
+  createWoodChips(x, y) {
+    for (let i = 0; i < 7; i++) {
+      this.particles.push({
+        x, y,
+        vx: (Math.random() - 0.5) * 50,
+        vy: -20 - Math.random() * 40,
+        gravity: 120,
+        color: '#8e5431',
+        size: 3 + Math.random() * 2,
+        life: 0.5,
+        maxLife: 0.5
+      });
+    }
+  }
+
+  createStoneGlints(x, y) {
+    for (let i = 0; i < 8; i++) {
+      this.particles.push({
+        x, y,
+        vx: (Math.random() - 0.5) * 60,
+        vy: -30 - Math.random() * 40,
+        gravity: 140,
+        color: Math.random() < 0.4 ? '#f1c40f' : '#b2bec3',
+        size: 2.5 + Math.random() * 2.5,
+        life: 0.5,
+        maxLife: 0.5
+      });
+    }
+  }
+
+  createWaterSplashes(x, y) {
+    for (let i = 0; i < 8; i++) {
+      this.particles.push({
+        x, y,
+        vx: (Math.random() - 0.5) * 45,
+        vy: -25 - Math.random() * 35,
+        gravity: 90,
+        color: '#74b9ff',
+        size: 3,
+        life: 0.45,
+        maxLife: 0.45
+      });
+    }
+  }
+
+  createPlantParticles(x, y) {
+    for (let i = 0; i < 6; i++) {
+      this.particles.push({
+        x, y,
+        vx: (Math.random() - 0.5) * 35,
+        vy: -15 - Math.random() * 25,
+        gravity: 60,
+        color: '#2ed573',
+        size: 3,
+        life: 0.4,
+        maxLife: 0.4
+      });
+    }
+  }
+
+  createDirtParticles(x, y) {
+    for (let i = 0; i < 6; i++) {
+      this.particles.push({
+        x, y,
+        vx: (Math.random() - 0.5) * 35,
+        vy: -20 - Math.random() * 25,
+        gravity: 100,
+        color: '#795548',
+        size: 3.5,
+        life: 0.4,
+        maxLife: 0.4
+      });
+    }
+  }
+
+  createHarvestLeafs(x, y) {
+    for (let i = 0; i < 8; i++) {
+      this.particles.push({
+        x, y,
+        vx: (Math.random() - 0.5) * 40,
+        vy: -30 - Math.random() * 30,
+        gravity: 50,
+        color: Math.random() < 0.5 ? '#2ed573' : '#ffd32a',
+        size: 3.5,
+        life: 0.6,
+        maxLife: 0.6
+      });
+    }
+  }
+
+  createMonsterDeathPoof(x, y) {
+    for (let i = 0; i < 14; i++) {
+      this.particles.push({
+        x, y,
+        vx: (Math.random() - 0.5) * 70,
+        vy: (Math.random() - 0.5) * 70,
+        gravity: 0,
+        color: '#ffffff',
+        size: 4 + Math.random() * 4,
+        life: 0.5,
+        maxLife: 0.5
+      });
+    }
+  }
+
+  createHealParticles(x, y) {
+    for (let i = 0; i < 8; i++) {
+      this.particles.push({
+        x: x + (Math.random() - 0.5) * 20,
+        y,
+        vx: (Math.random() - 0.5) * 20,
+        vy: -30 - Math.random() * 20,
+        gravity: -10,
+        color: '#ff4757',
+        size: 3,
+        life: 0.7,
+        maxLife: 0.7
+      });
+    }
   }
 
   showEmote(emoji) {
@@ -1044,15 +1143,9 @@ class Game {
     if (window.soundSystem) window.soundSystem.playKiss();
     this.showEmote('😘');
     this.farm.addLovePoints(10);
+    this.createHealParticles(this.player.x + 16, this.player.y + 10);
     this.updateHUD();
 
-    for (let i = 0; i < 7; i++) {
-      this.showSparkle(
-        this.player.x + 16 + (Math.random() - 0.5) * 30,
-        this.player.y + 10 + (Math.random() - 0.5) * 20,
-        '💖'
-      );
-    }
     if (!isPartnerInitiated) {
       this.network.send({ type: 'kiss' });
     }
@@ -1077,12 +1170,7 @@ class Game {
     this.floatingTexts.push({ x, y, text, color, vy: -20, life: 1.2 });
   }
 
-  showSparkle(x, y, emoji = '✨') {
-    this.sparkles.push({ x, y, emoji, vy: -15, life: 0.8 });
-  }
-
   updateHUD() {
-    // 1. Coins & Love
     const coinsEl = document.getElementById('hudCoins');
     if (coinsEl) coinsEl.textContent = this.farm.coins;
 
@@ -1092,7 +1180,6 @@ class Game {
     const loveTitleEl = document.getElementById('hudLoveTitle');
     if (loveTitleEl) loveTitleEl.textContent = this.farm.getLoveTitle();
 
-    // 2. Health Bar (Nyawa)
     const hpFill = document.getElementById('hudHpFill');
     const hpText = document.getElementById('hudHpText');
     if (hpFill && hpText) {
@@ -1101,7 +1188,6 @@ class Game {
       hpText.textContent = `${this.farm.playerHp}/${this.farm.playerMaxHp}`;
     }
 
-    // 3. Time
     const timeInfo = this.farm.getTimeOfDay();
     const hours = Math.floor(this.farm.timeMinutes / 60);
     const mins = Math.floor(this.farm.timeMinutes % 60);
@@ -1110,7 +1196,7 @@ class Game {
     if (timeEl) timeEl.textContent = `Hari ${this.farm.dayCount} - ${timeStr} (${timeInfo.label})`;
   }
 
-  // --- Main Game Loop ---
+  // --- MAIN LOOP ---
   loop(timestamp) {
     if (!this.lastTime) this.lastTime = timestamp;
     const delta = Math.min((timestamp - this.lastTime) / 1000, 0.1);
@@ -1123,7 +1209,6 @@ class Game {
   }
 
   update(delta) {
-    // Update farm & check monster attacks on player
     const monsterHitDamage = this.farm.update(delta, this.player.x + 16, this.player.y + 16);
     if (monsterHitDamage && monsterHitDamage > 0) {
       this.playerTakeDamage(monsterHitDamage);
@@ -1134,24 +1219,23 @@ class Game {
       this.animalManager.update(delta);
     }
 
-    // Flash screen timers
     if (this.screenFlashRed > 0) this.screenFlashRed -= delta;
     if (this.screenFlashGreen > 0) this.screenFlashGreen -= delta;
+    if (this.screenFadeBlack > 0) this.screenFadeBlack -= delta * 0.8;
 
-    // Slash animation timer
     if (this.player.slashTimer > 0) this.player.slashTimer -= delta;
 
-    // Fishing timer
+    // Fishing Timer
     if (this.player.isFishing) {
       this.player.fishingTimer -= delta;
       if (this.player.fishingTimer <= 0 && !this.player.fishingBite) {
         this.player.fishingBite = true;
-        this.showSparkle(this.player.x + 16, this.player.y - 10, '❗');
+        this.createWaterSplashes(this.player.x + 28, this.player.y + 16);
         this.showNotification('Ikan menyambar umpan! Tekan [Spasi/E] untuk menarik! 🎣');
       }
     }
 
-    // Movement calculation
+    // Movement
     let vx = 0;
     let vy = 0;
     if (this.keys['w'] || this.keys['arrowup']) vy -= 1;
@@ -1196,7 +1280,7 @@ class Game {
       }
     }
 
-    // Active Pet Follow Logic
+    // Pet Follower
     if (this.farm.activePet) {
       const targetPetX = this.player.x + (this.player.dir === 'left' ? 22 : -22);
       const targetPetY = this.player.y + (this.player.dir === 'up' ? 18 : -18);
@@ -1230,7 +1314,7 @@ class Game {
       if (this.partner.emoteTimer <= 0) this.partner.emote = null;
     }
 
-    // Smooth Camera Follow
+    // Camera follow
     const targetCamX = this.player.x + 16 - (this.canvas.width / this.camera.scale) / 2;
     const targetCamY = this.player.y + 16 - (this.canvas.height / this.camera.scale) / 2;
     this.camera.x += (targetCamX - this.camera.x) * 0.12;
@@ -1246,19 +1330,21 @@ class Game {
     this.camera.x = Math.max(0, Math.min(maxW - this.canvas.width / this.camera.scale, this.camera.x));
     this.camera.y = Math.max(0, Math.min(maxH - this.canvas.height / this.camera.scale, this.camera.y));
 
-    // Floating Combat & Reward Numbers
+    // Update Particles
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      const p = this.particles[i];
+      p.x += p.vx * delta;
+      p.y += p.vy * delta;
+      p.vy += p.gravity * delta;
+      p.life -= delta;
+      if (p.life <= 0) this.particles.splice(i, 1);
+    }
+
     for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
       const ft = this.floatingTexts[i];
       ft.y += ft.vy * delta;
       ft.life -= delta;
       if (ft.life <= 0) this.floatingTexts.splice(i, 1);
-    }
-
-    for (let i = this.sparkles.length - 1; i >= 0; i--) {
-      const s = this.sparkles[i];
-      s.y += s.vy * delta;
-      s.life -= delta;
-      if (s.life <= 0) this.sparkles.splice(i, 1);
     }
 
     for (let i = this.notifications.length - 1; i >= 0; i--) {
@@ -1267,7 +1353,7 @@ class Game {
       if (n.time <= 0) this.notifications.splice(i, 1);
     }
 
-    // Fireflies update at night
+    // Fireflies in night/sunset
     const timeInfo = this.farm.getTimeOfDay();
     if (timeInfo.phase === 'night' || timeInfo.phase === 'sunset') {
       this.fireflies.forEach(f => {
@@ -1285,7 +1371,7 @@ class Game {
     this.updateHUD();
   }
 
-  // --- Rendering ---
+  // --- RENDERING ---
   render() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
@@ -1304,12 +1390,20 @@ class Game {
       this.renderMysticWoods();
     }
 
+    // In-world Particle Rendering
+    this.particles.forEach(p => {
+      this.ctx.fillStyle = p.color;
+      this.ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+      this.ctx.fillRect(p.x, p.y, p.size, p.size);
+      this.ctx.globalAlpha = 1.0;
+    });
+
     this.ctx.restore();
 
     this.renderUIOverlays();
   }
 
-  // --- 1. OUTDOOR VILLAGE & FARM ---
+  // --- 1. OUTDOOR VILLAGE & SUNNYSIDE CROPS ---
   renderOutdoorVillage() {
     const imgGrass = this.assets.grass;
     const imgPath = this.assets.path;
@@ -1317,9 +1411,8 @@ class Game {
     const imgFarmland = this.assets.farmland;
     const imgFences = this.assets.fences;
     const imgChest = this.assets.chest;
-    const imgPlants = this.assets.plants;
 
-    // Base Terrain Tiles
+    // Base Terrain
     for (let y = 0; y < this.farm.rows; y++) {
       for (let x = 0; x < this.farm.cols; x++) {
         const px = x * 16;
@@ -1339,25 +1432,20 @@ class Game {
       }
     }
 
-    // Scenic Water Decorations in Lake (Water lilies, Reeds, Rocks, Boat)
+    // Clean Transparent Lake Decorations (NO BLACK BOXES!)
     if (this.assets.water_lilies) {
       this.ctx.drawImage(this.assets.water_lilies, 38 * 16, 14 * 16);
       this.ctx.drawImage(this.assets.water_lilies, 42 * 16, 22 * 16);
-      this.ctx.drawImage(this.assets.water_lilies, 37 * 16, 26 * 16);
-    }
-    if (this.assets.water_reeds) {
-      this.ctx.drawImage(this.assets.water_reeds, 36 * 16, 12 * 16);
-      this.ctx.drawImage(this.assets.water_reeds, 44 * 16, 13 * 16);
-      this.ctx.drawImage(this.assets.water_reeds, 45 * 16, 27 * 16);
+      this.ctx.drawImage(this.assets.water_lilies, 37 * 16, 25 * 16);
     }
     if (this.assets.water_rocks) {
       this.ctx.drawImage(this.assets.water_rocks, 40 * 16, 17 * 16);
-      this.ctx.drawImage(this.assets.water_rocks, 43 * 16, 25 * 16);
+      this.ctx.drawImage(this.assets.water_rocks, 43 * 16, 26 * 16);
     }
 
-    // Beautiful Wooden Pier & Bridge
-    if (this.assets.bridge_fancy) {
-      this.ctx.drawImage(this.assets.bridge_fancy, 35 * 16, 19 * 16, 112, 48);
+    // Smooth Horizontal Wooden Bridge to Pier
+    if (this.assets.bridge_horizontal) {
+      this.ctx.drawImage(this.assets.bridge_horizontal, 36 * 16, 19 * 16 - 16, 80, 48);
     }
 
     // Wooden Boat Moored at Lake Dock
@@ -1365,7 +1453,7 @@ class Game {
       this.ctx.drawImage(this.assets.boat, 41 * 16, 15 * 16, 48, 32);
     }
 
-    // Grid Objects (Fences, Chest, Sell Bin, Well, Crops)
+    // Grid Objects (Fences, Chest, Sell Bin, Well)
     for (let y = 0; y < this.farm.rows; y++) {
       for (let x = 0; x < this.farm.cols; x++) {
         const tile = this.farm.grid[y][x];
@@ -1387,15 +1475,20 @@ class Game {
           this.ctx.drawImage(this.assets.well, px - 8, py - 16, 32, 32);
         }
 
-        // Crops
-        if (tile.crop && imgPlants) {
-          const def = CROP_DEFINITIONS[tile.crop.id];
-          if (def) {
-            this.ctx.drawImage(imgPlants, Math.min(4, tile.crop.stage) * 16, def.plantRow * 16, 16, 16, px, py, 16, 16);
+        // --- SUNNYSIDE CROPS WITH REAL GROWTH STAGES (NO MORE PUMPKIN-ONLY GLITCH!) ---
+        if (tile.crop) {
+          const cropSprite = this.assets[`crop_${tile.crop.id}_${tile.crop.stage}`];
+          if (cropSprite) {
+            const ox = Math.floor(px + (16 - cropSprite.width) / 2);
+            const oy = Math.floor(py + (16 - cropSprite.height));
+            this.ctx.drawImage(cropSprite, ox, oy);
+
+            // Harvestable Glow Shimmer
             if (tile.crop.ready) {
-              this.ctx.fillStyle = 'rgba(255, 230, 0, 0.45)';
+              const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 250);
+              this.ctx.fillStyle = `rgba(241, 196, 15, ${pulse * 0.4})`;
               this.ctx.beginPath();
-              this.ctx.arc(px + 8, py + 8, 5, 0, Math.PI * 2);
+              this.ctx.arc(px + 8, py + 8, 7, 0, Math.PI * 2);
               this.ctx.fill();
             }
           }
@@ -1403,7 +1496,7 @@ class Game {
       }
     }
 
-    // Pasture Atmosphere: Hay Bales & Feeding Trough
+    // Pasture Atmosphere: Hay Bales, Trough & Scarecrow
     if (this.assets.hay_bale) {
       this.ctx.drawImage(this.assets.hay_bale, 3 * 16, 4 * 16, 32, 16);
       this.ctx.drawImage(this.assets.hay_bale, 10 * 16, 4 * 16, 32, 16);
@@ -1413,39 +1506,38 @@ class Game {
     }
     if (this.assets.scarecrow) {
       this.ctx.drawImage(this.assets.scarecrow, 21 * 16, 11 * 16 - 8, 32, 32);
+      this.ctx.drawImage(this.assets.scarecrow, 27 * 16, 11 * 16 - 8, 32, 32);
     }
     if (this.assets.bush_flowers) {
       this.ctx.drawImage(this.assets.bush_flowers, 13 * 16, 9 * 16 - 8, 32, 32);
-      this.ctx.drawImage(this.assets.bush_flowers, 33 * 16, 9 * 16 - 8, 32, 32);
+      this.ctx.drawImage(this.assets.bush_flowers, 35 * 16, 9 * 16 - 8, 32, 32);
       this.ctx.drawImage(this.assets.bush_flowers, 13 * 16, 18 * 16 - 8, 32, 32);
-      this.ctx.drawImage(this.assets.bush_flowers, 33 * 16, 18 * 16 - 8, 32, 32);
+      this.ctx.drawImage(this.assets.bush_flowers, 35 * 16, 18 * 16 - 8, 32, 32);
     }
 
-    // DISTINCT NPC & MC BUILDINGS
-    // 1. MC House (House.png)
-    if (this.assets.house) {
-      this.ctx.drawImage(this.assets.house, 20 * 16, 3 * 16 - 16, 96, 112);
-      this.renderSignboard(23 * 16, 8 * 16 + 18, '🏡 Rumah Utama (MC)');
+    // --- CLEAN COMPLETE BUILDINGS (NO LOOSE WINDOWS/DOORS ON GRASS!) ---
+    // 1. MC House (House Blue)
+    if (this.assets.house_blue) {
+      this.ctx.drawImage(this.assets.house_blue, 21 * 16, 3 * 16 - 16, 96, 112);
+      this.renderSignboard(24 * 16, 8 * 16 + 18, '🏡 Rumah Utama (MC)');
     }
 
-    // 2. Toko Pak Budi (Cottage style)
-    const budiHouse = this.assets.house_cottage || this.assets.house;
-    if (budiHouse) {
-      this.ctx.drawImage(budiHouse, 6 * 16 - 8, 20 * 16 - 28, 96, 112);
-      this.renderSignboard(8 * 16, 24 * 16 + 18, '🛒 Toko Tani Pak Budi');
+    // 2. Toko Pak Budi (House Blue style)
+    if (this.assets.house_blue) {
+      this.ctx.drawImage(this.assets.house_blue, 7 * 16, 20 * 16 - 20, 80, 96);
+      this.renderSignboard(9 * 16, 24 * 16 + 18, '🛒 Toko Tani Pak Budi');
     }
 
-    // 3. Mak Siti Ranch House (Barn style)
-    const sitiHouse = this.assets.house_barn || this.assets.house;
-    if (sitiHouse) {
-      this.ctx.drawImage(sitiHouse, 15 * 16 - 8, 20 * 16 - 28, 96, 112);
-      this.renderSignboard(17 * 16, 24 * 16 + 18, '🐮 Peternakan Mak Siti');
+    // 3. Mak Siti Ranch (House Red Farmhouse)
+    if (this.assets.house_red) {
+      this.ctx.drawImage(this.assets.house_red, 16 * 16, 20 * 16 - 20, 80, 96);
+      this.renderSignboard(18 * 16, 24 * 16 + 18, '🐮 Peternakan Mak Siti');
     }
 
-    // 4. Pandai Besi Borin (Blacksmith Forge)
-    if (this.assets.house) {
-      this.ctx.drawImage(this.assets.house, 24 * 16, 20 * 16 - 20, 80, 96);
-      this.renderSignboard(26 * 16, 24 * 16 + 18, '⚔️ Toko Senjata Borin');
+    // 4. Pandai Besi Borin (House Blue)
+    if (this.assets.house_blue) {
+      this.ctx.drawImage(this.assets.house_blue, 25 * 16, 20 * 16 - 20, 80, 96);
+      this.renderSignboard(27 * 16, 24 * 16 + 18, '⚔️ Toko Senjata Borin');
     }
 
     // Portal to Mystic Woods
@@ -1453,12 +1545,12 @@ class Game {
     this.ctx.fillRect(44 * 16, 1 * 16, 48, 24);
     this.renderSignboard(45 * 16, 1 * 16 + 26, '🌲 Hutan Misterius ➔');
 
-    // Depth Sorted Entities (Trees, Resource Nodes, Animals, Bots, NPCs, Players)
+    // Depth Sorted Entities
     const entities = [];
 
     // Trees
     const trees = [
-      [18, 4], [27, 4], [13, 3], [33, 4], [34, 9], [3, 16], [3, 21], [33, 26], [42, 8]
+      [18, 4], [28, 4], [13, 3], [34, 4], [34, 9], [3, 16], [3, 21], [33, 26], [42, 8]
     ];
     trees.forEach(([tx, ty]) => {
       entities.push({
@@ -1469,7 +1561,7 @@ class Game {
       });
     });
 
-    // Resource Nodes (Mineable Rocks & Choppable Logs/Stumps)
+    // Clean Natural Resource Nodes (Mineable Rocks & Choppable Logs/Stumps)
     this.farm.resourceNodes.forEach(node => {
       if (node.hp <= 0) return;
       entities.push({
@@ -1479,7 +1571,6 @@ class Game {
             this.ctx.drawImage(this.assets.rock_node, node.x * 16 - 8, node.y * 16 - 8, 32, 32);
           } else if (node.type === 'ore' && this.assets.rock_node) {
             this.ctx.drawImage(this.assets.rock_node, node.x * 16 - 8, node.y * 16 - 8, 32, 32);
-            // Gold Ore Shimmer
             this.ctx.fillStyle = '#f1c40f';
             this.ctx.beginPath();
             this.ctx.arc(node.x * 16 + 8, node.y * 16 + 8, 4, 0, Math.PI * 2);
@@ -1488,11 +1579,8 @@ class Game {
             this.ctx.drawImage(this.assets.log_wood, node.x * 16 - 8, node.y * 16 - 8, 32, 32);
           } else if (node.type === 'stump' && this.assets.stump) {
             this.ctx.drawImage(this.assets.stump, node.x * 16 - 8, node.y * 16 - 8, 32, 32);
-          } else if (node.type === 'tree_chop' && this.assets.tree) {
-            this.ctx.drawImage(this.assets.tree, node.x * 16 - 24, node.y * 16 - 64, 64, 80);
           }
 
-          // Durability bar if damaged
           if (node.hp < node.maxHp) {
             this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
             this.ctx.fillRect(node.x * 16, node.y * 16 - 4, 16, 3);
@@ -1503,7 +1591,7 @@ class Game {
       });
     });
 
-    // NPCs with Walking Animation and Flip!
+    // NPCs with Walking Animation and Flip
     this.farm.npcs.forEach(npc => {
       entities.push({
         y: npc.y + 16,
@@ -1511,12 +1599,7 @@ class Game {
           const img = this.assets[npc.role === 'merchant' ? 'npc_merchant' : (npc.role === 'rancher' ? 'npc_rancher' : (npc.role === 'fisher' ? 'npc_fisher' : 'player_boy'))];
           if (img) {
             const frame = Math.floor(npc.anim) % 6;
-            let row = 0;
-            if (npc.isMoving) {
-              row = npc.dir === 'down' ? 3 : (npc.dir === 'up' ? 5 : 4);
-            } else {
-              row = npc.dir === 'down' ? 0 : (npc.dir === 'up' ? 2 : 1);
-            }
+            let row = npc.isMoving ? (npc.dir === 'down' ? 3 : (npc.dir === 'up' ? 5 : 4)) : (npc.dir === 'down' ? 0 : (npc.dir === 'up' ? 2 : 1));
 
             this.ctx.save();
             if (npc.dir === 'left') {
@@ -1634,43 +1717,30 @@ class Game {
         const cell = this.farm.houseMC[y][x];
 
         if (cell.type === 'indoor_wall') {
-          if (imgWall) {
-            this.ctx.drawImage(imgWall, px, py, 16, 16);
-          } else {
-            this.ctx.fillStyle = '#6d4c41';
-            this.ctx.fillRect(px, py, 16, 16);
-          }
+          if (imgWall) this.ctx.drawImage(imgWall, px, py, 16, 16);
+          else { this.ctx.fillStyle = '#6d4c41'; this.ctx.fillRect(px, py, 16, 16); }
         } else {
-          if (imgFloor) {
-            this.ctx.drawImage(imgFloor, px, py, 16, 16);
-          } else {
-            this.ctx.fillStyle = '#d7ccc8';
-            this.ctx.fillRect(px, py, 16, 16);
-          }
+          if (imgFloor) this.ctx.drawImage(imgFloor, px, py, 16, 16);
+          else { this.ctx.fillStyle = '#d7ccc8'; this.ctx.fillRect(px, py, 16, 16); }
         }
       }
     }
 
-    // Doorway carpet
     this.ctx.fillStyle = '#c0392b';
     this.ctx.fillRect(8 * 16, 11 * 16, 16, 16);
 
-    // Draw Player's Placed Furniture using REAL PIXEL ART SPRITES!
     this.farm.placedFurnitureMC.forEach(f => {
       const img = this.assets[f.id];
-      if (img) {
-        this.ctx.drawImage(img, f.x * 16, f.y * 16);
-      }
+      if (img) this.ctx.drawImage(img, f.x * 16, f.y * 16);
     });
 
-    // Draw Characters
     this.renderCharacter(this.player, true);
     if (this.partner.active && this.partner.location === 'house_mc') {
       this.renderCharacter(this.partner, false);
     }
   }
 
-  // --- 3. NPC HOUSES (ALREADY FULLY FURNISHED!) ---
+  // --- 3. NPC HOUSES (FULLY FURNISHED!) ---
   renderNPCHouse(loc) {
     const room = loc === 'house_budi' ? this.farm.houseBudi : (loc === 'house_siti' ? this.farm.houseSiti : this.farm.houseBlacksmith);
     const imgFloor = this.assets.floor_wood;
@@ -1692,15 +1762,11 @@ class Game {
       }
     }
 
-    // Draw Pre-furnished items
     room.furniture.forEach(f => {
       const img = this.assets[f.id];
-      if (img) {
-        this.ctx.drawImage(img, f.x * 16, f.y * 16);
-      }
+      if (img) this.ctx.drawImage(img, f.x * 16, f.y * 16);
     });
 
-    // Doorway
     this.ctx.fillStyle = '#c0392b';
     this.ctx.fillRect(room.door.x * 16, room.door.y * 16, 16, 16);
 
@@ -1710,7 +1776,7 @@ class Game {
     }
   }
 
-  // --- 4. MYSTIC WOODS (AGGRESSIVE MONSTER COMBAT) ---
+  // --- 4. MYSTIC WOODS (AGGRESSIVE MONSTERS) ---
   renderMysticWoods() {
     const imgMystic = this.assets.mystic_grass || this.assets.grass;
 
@@ -1733,7 +1799,6 @@ class Game {
       }
     }
 
-    // Monsters in woods (Slimes & Skeletons)
     this.farm.monsters.forEach(m => {
       const img = m.type === 'slime' ? this.assets.slime_monster : this.assets.skeleton_monster;
       if (img) {
@@ -1749,7 +1814,6 @@ class Game {
         }
         this.ctx.restore();
 
-        // Monster HP Bar
         this.ctx.fillStyle = 'rgba(0,0,0,0.55)';
         this.ctx.fillRect(m.x + 4, m.y - 6, 24, 4);
         this.ctx.fillStyle = '#e74c3c';
@@ -1763,7 +1827,7 @@ class Game {
     }
   }
 
-  // --- CHARACTER SPRITE RENDERING (CLAMPED FRAME FIX: NO MORE DISAPPEARING!) ---
+  // --- CHARACTER SPRITES WITH 4-FRAME ATTACK CLAMP ---
   renderCharacter(char, isLocal) {
     const img = char.role === 'girl' ? this.assets.player_girl : this.assets.player_boy;
     if (!img) return;
@@ -1774,7 +1838,6 @@ class Game {
     else if (char.isMoving) row = char.dir === 'down' ? 3 : (char.dir === 'up' ? 5 : 4);
     else row = char.dir === 'down' ? 0 : (char.dir === 'up' ? 2 : 1);
 
-    // CRITICAL FIX: Attack animation only has 4 frames (0,1,2,3). Clamping avoids invisible blank sprites!
     const maxFrames = char.currentAction === 'action' ? 4 : 6;
     const frame = Math.floor(char.animFrame % maxFrames);
     const flip = char.dir === 'left';
@@ -1788,7 +1851,6 @@ class Game {
     }
     this.ctx.restore();
 
-    // Sword slash visual effect
     if (char.slashTimer > 0) {
       this.ctx.strokeStyle = '#f1c40f';
       this.ctx.lineWidth = 2.5;
@@ -1797,10 +1859,8 @@ class Game {
       this.ctx.stroke();
     }
 
-    // Name tag & Heart Status
     this.renderNameTag(char.x + 16, char.y + 3, `${char.name} ${char.role === 'girl' ? '🌸' : '🌱'}`, isLocal ? 'rgba(0,0,0,0.55)' : 'rgba(235,77,75,0.75)');
 
-    // In-world floating prompt indicator above player
     if (isLocal && this.activePrompt) {
       this.ctx.save();
       this.ctx.font = 'bold 8px sans-serif';
@@ -1876,7 +1936,6 @@ class Game {
       this.ctx.fillRect(0, 0, this.farm.cols * 16, this.farm.rows * 16);
     }
 
-    // Romantic Night Fireflies
     if (timeInfo.phase === 'night' || timeInfo.phase === 'sunset') {
       this.ctx.save();
       this.fireflies.forEach(f => {
@@ -1891,14 +1950,14 @@ class Game {
   }
 
   renderUIOverlays() {
-    // 1. Contextual Action Prompt Banner - Positioned TOP CENTER so it NEVER overlaps the hotbar!
+    // 1. Contextual Action Prompt Banner (Cleanly on top center, never blocks hotbar!)
     if (this.activePrompt) {
       this.ctx.save();
       this.ctx.font = 'bold 13px sans-serif';
       const text = this.activePrompt.text;
       const tw = this.ctx.measureText(text).width;
       const cx = this.canvas.width / 2;
-      const cy = 76; // Clean position under top time/love HUD
+      const cy = 76;
 
       this.ctx.fillStyle = 'rgba(255, 240, 243, 0.96)';
       this.ctx.strokeStyle = '#ff4757';
@@ -1923,7 +1982,7 @@ class Game {
       this.ctx.restore();
     });
 
-    // 3. Screen Flash Red (Damage) / Green (Heal)
+    // 3. Screen Flash Red (Damage), Green (Heal) & Black (Faint Sleep)
     if (this.screenFlashRed > 0) {
       this.ctx.save();
       this.ctx.fillStyle = `rgba(231, 76, 60, ${Math.min(0.4, this.screenFlashRed).toFixed(2)})`;
@@ -1936,8 +1995,14 @@ class Game {
       this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
       this.ctx.restore();
     }
+    if (this.screenFadeBlack > 0) {
+      this.ctx.save();
+      this.ctx.fillStyle = `rgba(0, 0, 0, ${Math.min(0.9, this.screenFadeBlack).toFixed(2)})`;
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+      this.ctx.restore();
+    }
 
-    // 4. Screen Notifications
+    // 4. Notifications
     let ny = this.canvas.height - 120;
     this.notifications.forEach(n => {
       this.ctx.save();
@@ -1978,7 +2043,6 @@ class Game {
     });
     document.getElementById('btnTakePic')?.addEventListener('click', () => this.takeRomanticPhoto());
 
-    // Chat form submit
     const chatForm = document.getElementById('chatForm');
     const chatInput = document.getElementById('chatInput');
     chatForm?.addEventListener('submit', (e) => {
