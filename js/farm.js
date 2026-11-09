@@ -533,6 +533,7 @@ class FarmManager {
   }
 
   // --- MYSTIC WOODS (COMBAT & RESOURCE MAP) ---
+  // --- MYSTIC WOODS (COMBAT & RESOURCE MAP) ---
   initMysticWoods() {
     this.woodsCols = 40;
     this.woodsRows = 30;
@@ -550,17 +551,79 @@ class FarmManager {
       this.mysticWoodsGrid.push(row);
     }
 
-    // Portal back to village at (3, 15)
+    // Portal back to village at (2, 15)
     this.mysticWoodsGrid[15][2].type = 'portal_village';
     this.mysticWoodsGrid[15][2].collidable = false;
 
-    // Monsters (Aggressive Slimes and Skeletons)
+    // Natural Interior Tree Groves (creates winding paths and natural monster territories)
+    const treeGroves = [
+      // NW Grove
+      { x: 5, y: 4 }, { x: 6, y: 4 }, { x: 7, y: 5 }, { x: 6, y: 6 },
+      // North Center Grove
+      { x: 15, y: 3 }, { x: 16, y: 3 }, { x: 17, y: 4 }, { x: 16, y: 5 },
+      // NE Grove
+      { x: 29, y: 4 }, { x: 30, y: 4 }, { x: 31, y: 5 }, { x: 32, y: 5 },
+      // West Mid Grove
+      { x: 8, y: 11 }, { x: 9, y: 12 }, { x: 8, y: 13 },
+      // East Mid Grove
+      { x: 28, y: 12 }, { x: 29, y: 13 }, { x: 30, y: 13 },
+      // SW Grove
+      { x: 6, y: 22 }, { x: 7, y: 22 }, { x: 8, y: 23 }, { x: 7, y: 24 },
+      // South Center Grove
+      { x: 17, y: 23 }, { x: 18, y: 24 }, { x: 19, y: 23 },
+      // SE Grove
+      { x: 30, y: 22 }, { x: 31, y: 23 }, { x: 32, y: 22 }
+    ];
+
+    treeGroves.forEach(t => {
+      if (this.mysticWoodsGrid[t.y] && this.mysticWoodsGrid[t.y][t.x]) {
+        this.mysticWoodsGrid[t.y][t.x].type = 'woods_tree';
+        this.mysticWoodsGrid[t.y][t.x].collidable = true;
+      }
+    });
+
+    // Rich Interactive Woods Nodes: Minable Rocks, Crystal Ores, Fallen Logs, Stumps, Mushrooms & Ancient Altar
+    this.woodsNodes = [
+      // Ancient Altar at Center (20, 15)
+      { id: 'altar_1', type: 'ancient_altar', x: 20, y: 15, hp: 9999, collidable: true },
+      // Glowing Crystal Ore Veins (Drop Amethyst & Gold!)
+      { id: 'wo_1', type: 'woods_ore', x: 12, y: 6, hp: 3, maxHp: 3 },
+      { id: 'wo_2', type: 'woods_ore', x: 24, y: 5, hp: 3, maxHp: 3 },
+      { id: 'wo_3', type: 'woods_ore', x: 14, y: 21, hp: 3, maxHp: 3 },
+      { id: 'wo_4', type: 'woods_ore', x: 33, y: 17, hp: 3, maxHp: 3 },
+      // Mystic Dark Rocks
+      { id: 'wr_1', type: 'woods_rock', x: 10, y: 9, hp: 3, maxHp: 3 },
+      { id: 'wr_2', type: 'woods_rock', x: 23, y: 9, hp: 3, maxHp: 3 },
+      { id: 'wr_3', type: 'woods_rock', x: 11, y: 17, hp: 3, maxHp: 3 },
+      { id: 'wr_4', type: 'woods_rock', x: 26, y: 21, hp: 3, maxHp: 3 },
+      // Fallen Mossy Logs
+      { id: 'wl_1', type: 'woods_log', x: 13, y: 12, hp: 3, maxHp: 3 },
+      { id: 'wl_2', type: 'woods_log', x: 27, y: 8, hp: 3, maxHp: 3 },
+      { id: 'wl_3', type: 'woods_log', x: 22, y: 20, hp: 3, maxHp: 3 },
+      // Ancient Mossy Stumps
+      { id: 'ws_1', type: 'woods_stump', x: 18, y: 8, hp: 2, maxHp: 2 },
+      { id: 'ws_2', type: 'woods_stump', x: 25, y: 16, hp: 2, maxHp: 2 },
+      { id: 'ws_3', type: 'woods_stump', x: 12, y: 25, hp: 2, maxHp: 2 },
+      // Glowing Blue & Red Mushrooms (Decor & Foraging)
+      { id: 'wm_b1', type: 'shroom_blue', x: 7, y: 9, hp: 1 },
+      { id: 'wm_b2', type: 'shroom_blue', x: 21, y: 6, hp: 1 },
+      { id: 'wm_b3', type: 'shroom_blue', x: 16, y: 18, hp: 1 },
+      { id: 'wm_b4', type: 'shroom_blue', x: 34, y: 11, hp: 1 },
+      { id: 'wm_r1', type: 'shroom_red', x: 11, y: 14, hp: 1 },
+      { id: 'wm_r2', type: 'shroom_red', x: 27, y: 15, hp: 1 },
+      { id: 'wm_r3', type: 'shroom_red', x: 19, y: 25, hp: 1 },
+      { id: 'wm_r4', type: 'shroom_red', x: 25, y: 24, hp: 1 }
+    ];
+
+    // Aggressive Monsters (4 Slimes + 3 Skeletons)
     this.monsters = [
-      { id: 's1', type: 'slime', x: 12 * 16, y: 10 * 16, hp: 40, maxHp: 40, atk: 10, speed: 28, dir: 'down', anim: 0, reward: 20 },
-      { id: 's2', type: 'slime', x: 22 * 16, y: 14 * 16, hp: 40, maxHp: 40, atk: 10, speed: 28, dir: 'down', anim: 0, reward: 20 },
-      { id: 's3', type: 'slime', x: 28 * 16, y: 8 * 16, hp: 40, maxHp: 40, atk: 10, speed: 28, dir: 'down', anim: 0, reward: 20 },
-      { id: 'sk1', type: 'skeleton', x: 18 * 16, y: 22 * 16, hp: 65, maxHp: 65, atk: 16, speed: 34, dir: 'down', anim: 0, reward: 35 },
-      { id: 'sk2', type: 'skeleton', x: 30 * 16, y: 20 * 16, hp: 65, maxHp: 65, atk: 16, speed: 34, dir: 'down', anim: 0, reward: 35 }
+      { id: 's1', type: 'slime', x: 12 * 16, y: 8 * 16, hp: 40, maxHp: 40, atk: 10, speed: 28, dir: 'down', anim: 0, reward: 20 },
+      { id: 's2', type: 'slime', x: 23 * 16, y: 8 * 16, hp: 40, maxHp: 40, atk: 10, speed: 28, dir: 'down', anim: 0, reward: 20 },
+      { id: 's3', type: 'slime', x: 14 * 16, y: 18 * 16, hp: 40, maxHp: 40, atk: 10, speed: 28, dir: 'down', anim: 0, reward: 20 },
+      { id: 's4', type: 'slime', x: 28 * 16, y: 18 * 16, hp: 40, maxHp: 40, atk: 10, speed: 28, dir: 'down', anim: 0, reward: 20 },
+      { id: 'sk1', type: 'skeleton', x: 18 * 16, y: 12 * 16, hp: 65, maxHp: 65, atk: 16, speed: 34, dir: 'down', anim: 0, reward: 35 },
+      { id: 'sk2', type: 'skeleton', x: 22 * 16, y: 18 * 16, hp: 65, maxHp: 65, atk: 16, speed: 34, dir: 'down', anim: 0, reward: 35 },
+      { id: 'sk3', type: 'skeleton', x: 32 * 16, y: 14 * 16, hp: 65, maxHp: 65, atk: 16, speed: 34, dir: 'down', anim: 0, reward: 35 }
     ];
   }
 
@@ -593,26 +656,29 @@ class FarmManager {
       return hitsFurn;
     } else if (location === 'woods') {
       if (tx < 0 || tx >= this.woodsCols || ty < 0 || ty >= this.woodsRows) return true;
-      return this.mysticWoodsGrid[ty][tx].collidable;
+      if (this.mysticWoodsGrid[ty][tx].collidable) return true;
+      const hitsWoodsNode = (this.woodsNodes || []).some(n => n.hp > 0 && n.collidable !== false && n.x === tx && n.y === ty);
+      return hitsWoodsNode;
     }
     return false;
   }
 
   // --- MINING & WOODCUTTING ACTIONS ---
   mineRock(tx, ty) {
-    const node = this.resourceNodes.find(n => n.hp > 0 && (n.type === 'rock' || n.type === 'ore') && n.x === tx && n.y === ty);
+    const list = this.currentLocation === 'woods' ? (this.woodsNodes || []) : this.resourceNodes;
+    const node = list.find(n => n.hp > 0 && (n.type === 'rock' || n.type === 'ore' || n.type === 'woods_rock' || n.type === 'woods_ore') && n.x === tx && n.y === ty);
     if (!node) return null;
 
     node.hp -= 1;
     if (node.hp <= 0) {
-      const isOre = node.type === 'ore';
+      const isOre = (node.type === 'ore' || node.type === 'woods_ore');
       const yieldStone = 2 + Math.floor(Math.random() * 2);
       const yieldOre = isOre ? (1 + Math.floor(Math.random() * 2)) : 0;
       this.chest.produce.stone = (this.chest.produce.stone || 0) + yieldStone;
       if (isOre) this.chest.produce.ore = (this.chest.produce.ore || 0) + yieldOre;
-      this.inventory.stone = (this.inventory.stone || 0) + yieldStone;
-      if (isOre) this.inventory.ore = (this.inventory.ore || 0) + yieldOre;
-      node.respawn = 60; // 60s respawn
+      this.addToInventory('stone', yieldStone);
+      if (isOre) this.addToInventory('ore', yieldOre);
+      node.respawn = 45; // 45s respawn
       this.addLovePoints(5);
       this.autoSave();
       return { destroyed: true, yield: yieldStone, oreYield: yieldOre, nodeType: node.type };
@@ -621,15 +687,16 @@ class FarmManager {
   }
 
   chopWood(tx, ty) {
-    const node = this.resourceNodes.find(n => n.hp > 0 && (n.type === 'log' || n.type === 'stump' || n.type === 'tree_chop') && n.x === tx && n.y === ty);
+    const list = this.currentLocation === 'woods' ? (this.woodsNodes || []) : this.resourceNodes;
+    const node = list.find(n => n.hp > 0 && (n.type === 'log' || n.type === 'stump' || n.type === 'tree_chop' || n.type === 'woods_log' || n.type === 'woods_stump') && n.x === tx && n.y === ty);
     if (!node) return null;
 
     node.hp -= 1;
     if (node.hp <= 0) {
       const yieldWood = 2 + Math.floor(Math.random() * 2);
       this.chest.produce.wood = (this.chest.produce.wood || 0) + yieldWood;
-      this.inventory.wood = (this.inventory.wood || 0) + yieldWood;
-      node.respawn = 60;
+      this.addToInventory('wood', yieldWood);
+      node.respawn = 45;
       this.addLovePoints(5);
       this.autoSave();
       return { destroyed: true, yield: yieldWood, nodeType: node.type };
@@ -699,13 +766,21 @@ class FarmManager {
 
   // --- CONSUME FOOD / CROPS TO HEAL HP ---
   eatCrop(cropId) {
-    const def = CROP_DEFINITIONS[cropId];
+    const def = CROP_DEFINITIONS[cropId] || ITEM_CATALOG[cropId];
     if (!def) return null;
-    if ((this.chest.produce[cropId] || 0) <= 0) return null;
+    if (this.playerHp >= this.playerMaxHp) return { full: true };
+    const hasInInv = (this.inventory[cropId] || 0) > 0;
+    const hasInChest = (this.chest.produce[cropId] || 0) > 0;
+    if (!hasInInv && !hasInChest) return null;
 
-    this.chest.produce[cropId]--;
-    const healAmount = def.healHp || 25;
+    if (hasInInv) {
+      this.removeFromInventory(cropId, 1);
+    } else {
+      this.chest.produce[cropId]--;
+    }
+    const healAmount = def.healHp || def.heal || 25;
     this.playerHp = Math.min(this.playerMaxHp, this.playerHp + healAmount);
+    this.autoSave();
     return { def, heal: healAmount };
   }
 
@@ -742,9 +817,10 @@ class FarmManager {
     if (this.currentLocation !== 'farm') return false;
     if (x < 0 || x >= this.cols || y < 0 || y >= this.rows) return false;
     const tile = this.grid[y][x];
-    if (tile.collidable || tile.type === 'path' || tile.type === 'water') return false;
+    if (tile.collidable || tile.type === 'path' || tile.type === 'water' || tile.type === 'building' || tile.type === 'fence' || tile.tilled) return false;
     tile.type = 'farmland';
     tile.tilled = true;
+    this.autoSave();
     return true;
   }
 
@@ -752,12 +828,11 @@ class FarmManager {
     if (this.currentLocation !== 'farm') return false;
     if (x < 0 || x >= this.cols || y < 0 || y >= this.rows) return false;
     const tile = this.grid[y][x];
-    if (tile.tilled) {
-      tile.watered = true;
-      tile.waterTimer = 60; // 60s watering dampness
-      return true;
-    }
-    return false;
+    if (!tile.tilled || tile.watered) return false;
+    tile.watered = true;
+    tile.waterTimer = 180; // 180s watering dampness
+    this.autoSave();
+    return true;
   }
 
   plantCrop(x, y, cropId) {
@@ -772,6 +847,7 @@ class FarmManager {
         growTimer: 0,
         ready: false
       };
+      this.autoSave();
       return true;
     }
     return false;
@@ -863,7 +939,8 @@ class FarmManager {
   buyAnimal(animalType, name, price) {
     if (this.coins >= price) {
       this.coins -= price;
-      const bounds = { minX: 3, maxX: 11, minY: 3, maxY: 10 };
+      // Strictly bounded inside Mak Siti pasture enclosure (x: 2..12, y: 3..8)
+      const bounds = { minX: 3.5, maxX: 10.5, minY: 4.2, maxY: 7.2 };
       const rx = bounds.minX + Math.random() * (bounds.maxX - bounds.minX);
       const ry = bounds.minY + Math.random() * (bounds.maxY - bounds.minY);
       this.ownedAnimals.push({
@@ -1141,6 +1218,7 @@ class FarmManager {
           const earned = m.reward || 20;
           this.coins += earned;
           this.chest.produce.monster_gel = (this.chest.produce.monster_gel || 0) + 1;
+          this.addToInventory('monster_gel', 1);
           this.addLovePoints(15);
 
           const deadM = { ...m };
@@ -1152,6 +1230,61 @@ class FarmManager {
         }
         return { hit: true, defeated: false, monster: m };
       }
+    }
+    return null;
+  }
+
+  // --- COMPANION PET COMBAT ASSISTANCE IN MYSTIC WOODS ---
+  petAttackWoods(delta, petX, petY) {
+    if (this.currentLocation !== 'woods' || !this.activePet) return null;
+    this.petAtkCooldown = (this.petAtkCooldown || 0) - delta;
+    if (this.petAtkCooldown > 0) return null;
+
+    let target = null;
+    let minDist = 75; // pet engagement range
+    this.monsters.forEach(m => {
+      if (m.hp > 0) {
+        const d = Math.hypot(m.x + 16 - petX, m.y + 16 - petY);
+        if (d < minDist) {
+          minDist = d;
+          target = m;
+        }
+      }
+    });
+
+    if (target) {
+      const petDmg = 12;
+      target.hp -= petDmg;
+      this.petAtkCooldown = 1.1;
+
+      // Knockback monster
+      const pushX = (target.x + 16) - petX;
+      const pushY = (target.y + 16) - petY;
+      const len = Math.hypot(pushX, pushY) || 1;
+      target.x += (pushX / len) * 12;
+      target.y += (pushY / len) * 12;
+
+      let defeated = false;
+      let earned = 0;
+      if (target.hp <= 0) {
+        defeated = true;
+        earned = target.reward || 20;
+        this.coins += earned;
+        this.chest.produce.monster_gel = (this.chest.produce.monster_gel || 0) + 1;
+        this.addToInventory('monster_gel', 1);
+        this.addLovePoints(15);
+        target.hp = target.maxHp;
+        target.x = (6 + Math.random() * 26) * 16;
+        target.y = (6 + Math.random() * 20) * 16;
+        this.autoSave();
+      }
+
+      return {
+        monster: target,
+        damage: petDmg,
+        defeated,
+        earned
+      };
     }
     return null;
   }

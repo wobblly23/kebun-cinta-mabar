@@ -112,11 +112,26 @@ class Game {
       sheep: 'assets/animals/sheep.png',
       baby_chick: 'assets/animals/baby_chick.png',
       pet_chick: 'assets/pets/pet_chick.png',
+      pet_duck: 'assets/pets/pet_duck.png',
+      pet_bird: 'assets/pets/pet_bird.png',
       pet_piggy: 'assets/pets/pet_piggy.png',
+      pet_sheep: 'assets/pets/pet_sheep.png',
       pet_bunny: 'assets/pets/pet_bunny.png',
+      pet_slime: 'assets/pets/pet_slime.png',
       // Monsters
       slime_monster: 'assets/monsters/slime_monster.png',
       skeleton_monster: 'assets/monsters/skeleton_monster.png',
+      // Woods Environment & Resources
+      woods_tree_big: 'assets/woods/tree_big.png',
+      woods_tree_small: 'assets/woods/tree_small.png',
+      woods_rock: 'assets/woods/rock_large.png',
+      woods_rock_small: 'assets/woods/rock_mossy.png',
+      woods_crystal_ore: 'assets/woods/crystal_ore.png',
+      woods_log: 'assets/woods/log_fallen.png',
+      woods_stump: 'assets/woods/stump.png',
+      woods_shroom_blue: 'assets/woods/shroom_blue_strip4.png',
+      woods_shroom_red: 'assets/woods/shroom_red_strip4.png',
+      woods_ancient_altar: 'assets/woods/ancient_altar.png',
       // Terrain & Buildings
       grass: 'assets/tiles/grass.png',
       farmland: 'assets/tiles/farmland.png',
@@ -278,8 +293,9 @@ class Game {
 
       const ptx = Math.floor((this.player.x + 16) / 16);
       const pty = Math.floor((this.player.y + 24) / 16);
-      if (Math.abs(ptx - tx) <= 1 && Math.abs(pty - ty) <= 1) {
-        this.performActionOnTile(tx, ty);
+      if (Math.abs(ptx - tx) <= 2 && Math.abs(pty - ty) <= 2) {
+        const activeTool = this.farm.hotbar[this.farm.activeHotbarIndex] || this.player.selectedTool;
+        this.performActionOnTile(tx, ty, activeTool);
       }
     };
 
@@ -787,14 +803,27 @@ class Game {
   performToolAction() {
     const currentItem = this.farm.hotbar[this.farm.activeHotbarIndex];
     if (!currentItem) {
-      this.showNotification('Slot kosong! Tekan [B] untuk membuka tas dan pasang alat/bibit.');
+      this.showNotification('Slot kosong! Tekan [B] untuk membuka tas dan pilih alat/bibit.');
       return;
     }
 
-    // 1. Food Consumption
+    // 1. Food Consumption (Crops, Fish, Milk, Egg)
     const itemDef = window.ITEM_CATALOG[currentItem];
-    if (itemDef && itemDef.type === 'food' && itemDef.heal) {
-      this.eatFoodAction(currentItem);
+    if (itemDef && itemDef.type === 'food') {
+      const res = this.farm.eatCrop(currentItem);
+      if (res) {
+        if (res.full) {
+          this.showNotification('HP kamu sudah penuh! ❤️');
+        } else {
+          if (window.soundSystem) window.soundSystem.playTill();
+          this.showDamage(this.player.x + 8, this.player.y - 10, '+' + res.heal + ' HP ❤️', '#2ed573');
+          this.showNotification('Memakan ' + res.def.name + '! Memulihkan +' + res.heal + ' HP! 🍎❤️');
+          this.renderHotbar();
+          this.updateHUD();
+        }
+      } else {
+        this.showNotification(itemDef.name + ' habis di tas!');
+      }
       return;
     }
 
@@ -810,7 +839,18 @@ class Game {
     const loc = this.farm.currentLocation;
 
     // 3. Combat with Weapon or in Mystic Woods
-    if (loc === 'woods' || currentItem.startsWith('sword_')) {
+    if (currentItem.startsWith('sword_') || loc === 'woods') {
+      if (loc !== 'woods') {
+        this.showNotification('Pedang hanya bisa digunakan untuk berburu monster di Hutan Misterius! 🌲⚔️');
+        return;
+      }
+      // Check if monster in melee range (< 48px)
+      const nearMonster = this.farm.monsters.find(m => m.hp > 0 && Math.hypot(m.x + 16 - (this.player.x + 16), m.y + 16 - (this.player.y + 16)) < 48);
+      if (!nearMonster) {
+        this.showNotification('Dekati monster terlebih dahulu untuk menebasnya! ⚔️');
+        return;
+      }
+
       this.player.currentAction = 'action';
       this.player.actionType = 'sword';
       this.player.actionTimer = 0.35;
@@ -822,69 +862,171 @@ class Game {
       if (res) {
         if (res.defeated) {
           this.createMonsterDeathPoof(res.monster.x + 16, res.monster.y + 16);
-          this.showDamage(res.monster.x, res.monster.y, `KO! +${res.earned}🪙`, '#f1c40f');
-          this.showNotification(`Monster dikalahkan! +${res.earned} Koin Cinta! ⚔️🎉`);
+          this.showDamage(res.monster.x, res.monster.y, 'KO! +' + res.earned + '🪙', '#f1c40f');
+          this.showNotification('Monster dikalahkan! +' + res.earned + ' Koin Cinta! ⚔️🎉');
         } else {
-          this.showDamage(res.monster.x, res.monster.y, `-${dmg}💥`, '#e74c3c');
+          this.showDamage(res.monster.x, res.monster.y, '-' + dmg + '💥', '#e74c3c');
         }
       }
       this.updateHUD();
       return;
     }
 
-    // 4. Farming / Woodcutting / Mining / Fishing
+    // 4. Validate and perform action on tile
     this.performActionOnTile(tx, ty, currentItem);
   }
 
   performActionOnTile(tx, ty, tool) {
-    if (this.farm.currentLocation !== 'farm') return;
+    const loc = this.farm.currentLocation;
+    if (loc !== 'farm' && loc !== 'woods') {
+      this.showNotification('Alat hanya bisa digunakan di luar ruangan atau di hutan! 🏡');
+      return;
+    }
 
-    this.player.currentAction = 'action';
-    this.player.actionType = tool;
-    this.player.actionTimer = 0.35;
+    if (!tool) {
+      tool = this.farm.hotbar[this.farm.activeHotbarIndex] || this.player.selectedTool;
+    }
+    if (!tool) {
+      this.showNotification('Pilih alat atau bibit di hotbar/tas terlebih dahulu! 🎒');
+      return;
+    }
 
+    // Smart targeting coordinates helper
+    let targetX = tx;
+    let targetY = ty;
+    const ptx = Math.floor((this.player.x + 16) / 16);
+    const pty = Math.floor((this.player.y + 24) / 16);
+
+    // --- STRICT TOOL & ITEM FUNCTIONALITY VALIDATION ---
     if (tool === 'hoe') {
-      const ok = this.farm.tillSoil(tx, ty);
+      if (loc !== 'farm') {
+        this.showNotification('Cangkul hanya bisa digunakan di kebun desa! 🌾');
+        return;
+      }
+      if (!this.farm.grid[targetY] || this.farm.grid[targetY][targetX]?.tilled || this.farm.grid[targetY][targetX]?.collidable || this.farm.grid[targetY][targetX]?.type === 'path' || this.farm.grid[targetY][targetX]?.type === 'water') {
+        if (this.farm.grid[pty] && !this.farm.grid[pty][ptx]?.tilled && !this.farm.grid[pty][ptx]?.collidable && this.farm.grid[pty][ptx]?.type !== 'path' && this.farm.grid[pty][ptx]?.type !== 'water') {
+          targetX = ptx;
+          targetY = pty;
+        } else {
+          this.showNotification('Cangkul hanya bisa digunakan pada tanah/rumput kosong yang belum dicangkul! 🌾');
+          return;
+        }
+      }
+
+      const ok = this.farm.tillSoil(targetX, targetY);
       if (ok) {
+        this.player.currentAction = 'action';
+        this.player.actionType = 'hoe';
+        this.player.actionTimer = 0.35;
         if (window.soundSystem) window.soundSystem.playTill();
-        this.createDirtParticles(tx * 16 + 8, ty * 16 + 8);
-        this.network.send({ type: 'action_till', x: tx, y: ty });
-      } else {
-        this.showNotification('Arahkan cangkul ke rumput untuk membuat petak ladang subur! 🌾');
+        this.createDirtParticles(targetX * 16 + 8, targetY * 16 + 8);
+        this.network.send({ type: 'action_till', x: targetX, y: targetY });
       }
     } else if (tool === 'water') {
-      this.waterTile(tx, ty);
+      if (loc !== 'farm') {
+        this.showNotification('Penyiram air hanya untuk menyiram petak ladang di kebun! 💧');
+        return;
+      }
+      if (!this.farm.grid[targetY] || !this.farm.grid[targetY][targetX]?.tilled || this.farm.grid[targetY][targetX]?.watered) {
+        if (this.farm.grid[pty] && this.farm.grid[pty][ptx]?.tilled && !this.farm.grid[pty][ptx]?.watered) {
+          targetX = ptx;
+          targetY = pty;
+        } else {
+          this.showNotification('Penyiram air hanya bisa menyiram petak ladang yang masih kering! 💧');
+          return;
+        }
+      }
+
+      this.player.currentAction = 'action';
+      this.player.actionType = 'water';
+      this.player.actionTimer = 0.35;
+      this.waterTile(targetX, targetY);
     } else if (tool === 'axe') {
-      this.chopResource(tx, ty);
+      const list = loc === 'woods' ? (this.farm.woodsNodes || []) : this.farm.resourceNodes;
+      const targetNode = list.find(n => n.hp > 0 && (n.type === 'tree' || n.type === 'log' || n.type === 'woods_log' || n.type === 'woods_stump' || n.type === 'stump') &&
+        (Math.hypot(n.x - targetX, n.y - targetY) <= 1.8 || Math.hypot(n.x - ptx, n.y - pty) <= 1.8));
+
+      if (!targetNode) {
+        this.showNotification('Kapak hanya bisa menebang pohon, batang kayu, atau tunggul! 🪓');
+        return;
+      }
+
+      this.player.currentAction = 'action';
+      this.player.actionType = 'axe';
+      this.player.actionTimer = 0.35;
+      this.chopResource(targetNode.x, targetNode.y);
     } else if (tool === 'pickaxe') {
-      this.mineResource(tx, ty);
+      const list = loc === 'woods' ? (this.farm.woodsNodes || []) : this.farm.resourceNodes;
+      const targetNode = list.find(n => n.hp > 0 && (n.type === 'rock' || n.type === 'ore' || n.type === 'woods_rock' || n.type === 'woods_ore') &&
+        (Math.hypot(n.x - targetX, n.y - targetY) <= 1.8 || Math.hypot(n.x - ptx, n.y - pty) <= 1.8));
+
+      if (!targetNode) {
+        this.showNotification('Beliung hanya bisa menambang batu atau bongkahan bijih emas/kristal! ⛏️');
+        return;
+      }
+
+      this.player.currentAction = 'action';
+      this.player.actionType = 'pickaxe';
+      this.player.actionTimer = 0.35;
+      this.mineResource(targetNode.x, targetNode.y);
     } else if (tool && tool.startsWith('seed_')) {
+      if (loc !== 'farm') {
+        this.showNotification('Bibit hanya bisa ditanam di petak ladang kebun desa! 🌱');
+        return;
+      }
       const cropId = tool.replace('seed_', '');
       const seedCount = this.farm.inventory[tool] || 0;
-      if (seedCount > 0) {
-        const ok = this.farm.plantCrop(tx, ty, cropId);
-        if (ok) {
-          this.farm.removeFromInventory(tool, 1);
-          if (this.farm.chest.seeds[cropId] > 0) this.farm.chest.seeds[cropId]--;
-          if (window.soundSystem) window.soundSystem.playPlant();
-          this.createPlantParticles(tx * 16 + 8, ty * 16 + 8);
-          this.showNotification(`Berhasil menanam bibit ${window.ITEM_CATALOG[tool]?.name || cropId}! 🌱`);
-          this.network.send({ type: 'action_plant', x: tx, y: ty, cropId });
-          this.renderHotbar();
+      if (seedCount <= 0) {
+        this.showNotification('Bibit ' + cropId + ' habis di tas! Beli di Toko Pak Budi ya~ 🛒');
+        return;
+      }
+
+      if (!this.farm.grid[targetY] || !this.farm.grid[targetY][targetX]?.tilled || this.farm.grid[targetY][targetX]?.crop) {
+        if (this.farm.grid[pty] && this.farm.grid[pty][ptx]?.tilled && !this.farm.grid[pty][ptx]?.crop) {
+          targetX = ptx;
+          targetY = pty;
         } else {
-          this.showNotification('Cangkul tanah dulu sampai gembur sebelum menanam bibit! 🌾');
+          this.showNotification('Bibit hanya bisa ditanam di tanah gembur yang belum ada tanamannya! 🌱');
+          return;
         }
-      } else {
-        this.showNotification(`Bibit ${cropId} habis di tas! Beli di Toko Pak Budi ya~ 🛒`);
+      }
+
+      const ok = this.farm.plantCrop(targetX, targetY, cropId);
+      if (ok) {
+        this.player.currentAction = 'action';
+        this.player.actionType = tool;
+        this.player.actionTimer = 0.35;
+        this.farm.removeFromInventory(tool, 1);
+        if (this.farm.chest.seeds[cropId] > 0) this.farm.chest.seeds[cropId]--;
+        if (window.soundSystem) window.soundSystem.playPlant();
+        this.createPlantParticles(targetX * 16 + 8, targetY * 16 + 8);
+        this.showNotification('Berhasil menanam bibit ' + (window.ITEM_CATALOG[tool] ? window.ITEM_CATALOG[tool].name : cropId) + '! 🌱');
+        this.network.send({ type: 'action_plant', x: targetX, y: targetY, cropId });
+        this.renderHotbar();
       }
     } else if (tool === 'fishing_rod') {
+      if (loc !== 'farm') {
+        this.showNotification('Pancing hanya bisa digunakan di dermaga danau desa! 🎣');
+        return;
+      }
+      const isNearWater = (this.farm.grid[targetY] && this.farm.grid[targetY][targetX]?.type === 'water') ||
+                          (targetX >= 35 && targetX <= 46 && targetY >= 14 && targetY <= 26);
+      if (!isNearWater) {
+        this.showNotification('Arahkan pancing ke air danau untuk mulai memancing ikan! 🌊🎣');
+        return;
+      }
+      this.player.currentAction = 'action';
+      this.player.actionType = 'fishing_rod';
+      this.player.actionTimer = 0.35;
       this.startFishing();
+    } else {
+      this.showNotification('Barang ini tidak memiliki fungsi aksi di sini. 🎒');
     }
 
     this.updateHUD();
   }
 
-  chopResource(tx, ty) {
+    chopResource(tx, ty) {
     const res = this.farm.chopWood(tx, ty);
     if (res) {
       if (window.soundSystem) window.soundSystem.playSwordSwing();
@@ -1133,11 +1275,14 @@ class Game {
         list.appendChild(item);
       });
     } else if (category === 'pets') {
-      title.textContent = '🐾 Hewan Peliharaan Setia (Mak Siti)';
+      title.textContent = '🐾 Hewan Peliharaan Setia & Petarung (Mak Siti)';
       const pets = [
-        { type: 'pet_chick', name: 'Anak Ayam Imut 🐥', price: 50, icon: '🐥', desc: 'Selalu lincah melompat mengikuti kemana pun kamu pergi.' },
-        { type: 'pet_bunny', name: 'Kelinci Salju 🐰', price: 75, icon: '🐰', desc: 'Kelinci manis penenang hati yang setia menemanimu.' },
-        { type: 'pet_piggy', name: 'Babi Mungil 🐷', price: 65, icon: '🐷', desc: 'Babi kecil lucu yang suka mendengus gembira.' }
+        { type: 'pet_bunny', name: 'Kelinci Salju 🐰', price: 75, icon: '🐰', desc: 'Kelinci putih manis berbulu salju yang setia menemanimu dan membantu bertarung melawan monster!' },
+        { type: 'pet_duck', name: 'Anak Bebek Kuning 🦆', price: 50, icon: '🦆', desc: 'Bebek kecil menggemaskan yang lincah mematuk monster kemana pun kamu pergi.' },
+        { type: 'pet_bird', name: 'Burung Pipit Biru 🐦', price: 60, icon: '🐦', desc: 'Terbang lincah berkicau merdu dan sigap menyambar monster di hutan misterius.' },
+        { type: 'pet_sheep', name: 'Domba Salju 🐑', price: 70, icon: '🐑', desc: 'Domba putih berbulu selembut kapas yang setia menanduk monster berbahaya.' },
+        { type: 'pet_piggy', name: 'Babi Mungil 🐷', price: 65, icon: '🐷', desc: 'Babi kecil lucu yang suka mendengus gembira dan menyeruduk musuh.' },
+        { type: 'pet_slime', name: 'Slime Jinak 🧪', price: 80, icon: '🧪', desc: 'Slime biru imut nan elastis yang setia memantul menyerang monster.' }
       ];
       pets.forEach(p => {
         const item = document.createElement('div');
@@ -1152,7 +1297,7 @@ class Game {
         `;
         item.querySelector('button').onclick = () => {
           if (this.farm.buyPet(p.type, p.name, p.price)) {
-            this.showNotification(`Memilih ${p.name} sebagai teman setia yang mengikutimu! 🐾❤️`);
+            this.showNotification(`Memilih ${p.name} sebagai teman setia dan petarungmu! 🐾❤️`);
             this.updateHUD();
           } else {
             this.showNotification('Koin tidak mencukupi! 🪙');
@@ -1530,23 +1675,50 @@ class Game {
       }
     }
 
-    // Pet Follower
+    // Pet Follower & Combat AI
     if (this.farm.activePet) {
-      const targetPetX = this.player.x + (this.player.dir === 'left' ? 22 : -22);
-      const targetPetY = this.player.y + (this.player.dir === 'up' ? 18 : -18);
+      const loc = this.farm.currentLocation;
+      let targetPetX = this.player.x + (this.player.dir === 'left' ? 20 : -20);
+      let targetPetY = this.player.y + (this.player.dir === 'up' ? 16 : -16);
+
+      // In Mystic Woods: Pet actively hunts & attacks nearby hostile monsters!
+      if (loc === 'woods') {
+        const nearMonster = this.farm.monsters.find(m => m.hp > 0 && Math.hypot(m.x + 16 - this.player.x, m.y + 16 - this.player.y) < 75);
+        if (nearMonster) {
+          targetPetX = nearMonster.x + (nearMonster.dir === 'left' ? 14 : -14);
+          targetPetY = nearMonster.y + (nearMonster.dir === 'up' ? 10 : -10);
+        }
+
+        // Active Pet Combat Strike
+        const petAtkRes = this.farm.petAttackWoods(delta, this.pet.x + 8, this.pet.y + 8);
+        if (petAtkRes) {
+          this.pet.attackTimer = 0.25;
+          if (window.soundSystem) window.soundSystem.playTill();
+          this.showDamage(petAtkRes.monster.x + 8, petAtkRes.monster.y - 4, '-' + petAtkRes.damage + '🐾', '#3498db');
+          if (petAtkRes.defeated) {
+            this.createMonsterDeathPoof(petAtkRes.monster.x + 16, petAtkRes.monster.y + 16);
+            this.showDamage(petAtkRes.monster.x, petAtkRes.monster.y - 8, 'KO! +' + petAtkRes.earned + '🪙', '#f1c40f');
+            this.showNotification('Pet ' + this.farm.activePet.name + ' mengalahkan monster! +' + petAtkRes.earned + ' Koin Cinta! 🐾🎉');
+          }
+        }
+      }
+
+      if (this.pet.attackTimer > 0) this.pet.attackTimer -= delta;
+
       const pdx = targetPetX - this.pet.x;
       const pdy = targetPetY - this.pet.y;
       const pdist = Math.hypot(pdx, pdy);
 
-      if (pdist > 18) {
+      if (pdist > 14) {
         this.pet.isMoving = true;
-        const petSpeed = (this.player.speed + 12) * delta;
+        const petSpeed = (this.player.speed + 16) * delta;
         this.pet.x += (pdx / pdist) * petSpeed;
         this.pet.y += (pdy / pdist) * petSpeed;
         this.pet.dir = pdx > 0 ? 'right' : 'left';
-        this.pet.anim = (this.pet.anim + delta * 6) % 2;
+        this.pet.anim = (this.pet.anim + delta * 6) % 4;
       } else {
         this.pet.isMoving = false;
+        this.pet.anim = (this.pet.anim + delta * 2) % 4;
       }
     }
 
@@ -1678,7 +1850,16 @@ class Game {
         if (tile.type === 'path' && imgPath) this.ctx.drawImage(imgPath, px, py, 16, 16);
         if (tile.type === 'water' && imgWater) this.ctx.drawImage(imgWater, px, py, 16, 16);
         if (tile.type === 'farmland' || tile.tilled) {
-          if (imgFarmland) this.ctx.drawImage(imgFarmland, 16, 16, 16, 16, px, py, 16, 16);
+          if (imgFarmland) {
+            const hasTop = y > 0 && (this.farm.grid[y - 1][x].type === 'farmland' || this.farm.grid[y - 1][x].tilled);
+            const hasBot = y < this.farm.rows - 1 && (this.farm.grid[y + 1][x].type === 'farmland' || this.farm.grid[y + 1][x].tilled);
+            const hasLeft = x > 0 && (this.farm.grid[y][x - 1].type === 'farmland' || this.farm.grid[y][x - 1].tilled);
+            const hasRight = x < this.farm.cols - 1 && (this.farm.grid[y][x + 1].type === 'farmland' || this.farm.grid[y][x + 1].tilled);
+
+            const sx = (!hasLeft ? 0 : (!hasRight ? 32 : 16));
+            const sy = (!hasTop ? 0 : (!hasBot ? 32 : 16));
+            this.ctx.drawImage(imgFarmland, sx, sy, 16, 16, px, py, 16, 16);
+          }
           if (tile.watered) {
             this.ctx.fillStyle = 'rgba(20, 50, 100, 0.35)';
             this.ctx.fillRect(px, py, 16, 16);
@@ -1715,7 +1896,20 @@ class Game {
         const px = x * 16;
         const py = y * 16;
 
-        if (tile.type === 'fence' && imgFences) this.ctx.drawImage(imgFences, 16, 16, 16, 16, px, py, 16, 16);
+        if (tile.type === 'fence' && imgFences) {
+          const hasLeft = x > 0 && this.farm.grid[y][x - 1]?.type === 'fence';
+          const hasRight = x < this.farm.cols - 1 && this.farm.grid[y][x + 1]?.type === 'fence';
+          const hasUp = y > 0 && this.farm.grid[y - 1][x]?.type === 'fence';
+          const hasDown = y < this.farm.rows - 1 && this.farm.grid[y + 1][x]?.type === 'fence';
+
+          let sx = 16, sy = 16;
+          if (hasLeft || hasRight) {
+            sx = 16; sy = 0; // connected horizontal rail
+          } else if (hasUp || hasDown) {
+            sx = 0; sy = 16; // connected vertical post
+          }
+          this.ctx.drawImage(imgFences, sx, sy, 16, 16, px, py, 16, 16);
+        }
         if (tile.type === 'chest' && imgChest) this.ctx.drawImage(imgChest, px, py, 16, 16);
         if (tile.type === 'sell_bin') {
           this.ctx.fillStyle = '#b33939';
@@ -1728,6 +1922,9 @@ class Game {
         }
         if (tile.type === 'well' && this.assets.well) {
           this.ctx.drawImage(this.assets.well, px - 2, py - 24, 20, 40);
+        }
+        if (x === 25 && y === 10 && this.assets.scarecrow) {
+          this.ctx.drawImage(this.assets.scarecrow, px, py - 8, 24, 28);
         }
 
         // --- SUNNYSIDE CROPS WITH REAL GROWTH STAGES (NO MORE PUMPKIN-ONLY GLITCH!) ---
@@ -1751,15 +1948,6 @@ class Game {
       }
     }
 
-    // Pasture Atmosphere: Hay Bales & Water Trough
-    if (this.assets.hay_bale) {
-      this.ctx.drawImage(this.assets.hay_bale, 3 * 16, 4 * 16, 32, 16);
-      this.ctx.drawImage(this.assets.hay_bale, 10 * 16, 4 * 16, 32, 16);
-    }
-    if (this.assets.trough) {
-      this.ctx.drawImage(this.assets.trough, 7 * 16, 4 * 16, 32, 16);
-    }
-
     // Clean Flower Borders (Away from bridge entrance & road)
     if (this.assets.bush_flowers) {
       this.ctx.drawImage(this.assets.bush_flowers, 13 * 16, 9 * 16, 32, 16);
@@ -1781,7 +1969,7 @@ class Game {
       this.renderSignboard(9 * 16, 24 * 16 + 18, '🛒 Toko Tani Pak Budi');
     }
 
-    // 3. Mak Siti Ranch (House Red Farmhouse)
+    // 3. Mak Siti Ranch (House Red Farmhouse - FRONT FACING WITH ARCHED DOOR & WINDOWS!)
     if (this.assets.house_red) {
       this.ctx.drawImage(this.assets.house_red, 16 * 16, 20 * 16 - 20, 80, 96);
       this.renderSignboard(18 * 16, 24 * 16 + 18, '🐮 Peternakan Mak Siti');
@@ -1876,14 +2064,20 @@ class Game {
         render: () => {
           const img = this.assets[a.type];
           if (img) {
-            const frame = Math.floor(a.anim) % 2;
+            const frame = Math.floor(a.frame || 0) % 4;
+            const isSmall = (a.type === 'baby_chick' || a.type === 'duck');
+            const fw = isSmall ? 16 : 32;
+            const fh = isSmall ? 16 : 32;
+            const dw = isSmall ? 16 : 28;
+            const dh = isSmall ? 16 : 28;
+
             this.ctx.save();
             if (a.dir === 'left') {
-              this.ctx.translate(a.x + 32, a.y - 16);
+              this.ctx.translate(a.x + dw, a.y - 8);
               this.ctx.scale(-1, 1);
-              this.ctx.drawImage(img, frame * 32, 0, 32, 32, 0, 0, 32, 32);
+              this.ctx.drawImage(img, frame * fw, 0, fw, fh, 0, 0, dw, dh);
             } else {
-              this.ctx.drawImage(img, frame * 32, 0, 32, 32, a.x, a.y - 16, 32, 32);
+              this.ctx.drawImage(img, frame * fw, 0, fw, fh, a.x, a.y - 8, dw, dh);
             }
             this.ctx.restore();
             a.hearts.forEach(h => { this.ctx.font = '10px sans-serif'; this.ctx.fillText('❤️', h.x, h.y); });
@@ -1893,13 +2087,13 @@ class Game {
     });
 
     this.botManager.bots.forEach(b => {
-      if (b.hired) {
+      if (b.isUnlocked()) {
         entities.push({
           y: b.y,
           render: () => {
             const img = this.assets[b.type === 'boni' ? 'bot_boni' : 'bot_slime'];
             if (img) {
-              const frame = Math.floor(b.anim) % 4;
+              const frame = Math.floor(b.frame || 0) % 4;
               let row = b.dir === 'down' ? 0 : (b.dir === 'up' ? 2 : 1);
               this.ctx.save();
               if (b.dir === 'left') {
@@ -1924,16 +2118,28 @@ class Game {
         render: () => {
           const img = this.assets[this.farm.activePet.type];
           if (img) {
-            const frame = Math.floor(this.pet.anim) % 2;
+            const frame = Math.floor(this.pet.anim || 0) % 4;
+            const isBig = (this.farm.activePet.type === 'pet_piggy' || this.farm.activePet.type === 'pet_sheep');
+            const fw = isBig ? 32 : 16;
+            const fh = isBig ? 32 : 16;
+            const dw = isBig ? 24 : 18;
+            const dh = isBig ? 24 : 18;
+
             this.ctx.save();
             if (this.pet.dir === 'left') {
-              this.ctx.translate(this.pet.x + 24, this.pet.y);
+              this.ctx.translate(this.pet.x + dw, this.pet.y);
               this.ctx.scale(-1, 1);
-              this.ctx.drawImage(img, frame * 24, 0, 24, 24, 0, 0, 24, 24);
+              this.ctx.drawImage(img, frame * fw, 0, fw, fh, 0, 0, dw, dh);
             } else {
-              this.ctx.drawImage(img, frame * 24, 0, 24, 24, this.pet.x, this.pet.y, 24, 24);
+              this.ctx.drawImage(img, frame * fw, 0, fw, fh, this.pet.x, this.pet.y, dw, dh);
             }
             this.ctx.restore();
+
+            if (this.pet.attackTimer > 0) {
+              this.ctx.fillStyle = '#f1c40f';
+              this.ctx.font = '10px sans-serif';
+              this.ctx.fillText('🐾', this.pet.x + 4, this.pet.y - 4);
+            }
           }
         }
       });
@@ -2054,6 +2260,7 @@ class Game {
   renderMysticWoods() {
     const imgMystic = this.assets.mystic_grass || this.assets.grass;
 
+    // 1. Base Terrain Grass & Portal
     for (let y = 0; y < this.farm.woodsRows; y++) {
       for (let x = 0; x < this.farm.woodsCols; x++) {
         const px = x * 16;
@@ -2062,46 +2269,198 @@ class Game {
 
         if (imgMystic) this.ctx.drawImage(imgMystic, px, py, 16, 16);
 
-        if (cell.type === 'woods_tree' && this.assets.tree) {
-          this.ctx.drawImage(this.assets.tree, px - 16, py - 48, 48, 64);
-        }
         if (cell.type === 'portal_village') {
-          this.ctx.fillStyle = 'rgba(46, 204, 113, 0.45)';
-          this.ctx.fillRect(px, py, 16, 16);
-          this.renderSignboard(px + 8, py + 22, '🏡 Kembali ke Desa');
+          const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 300);
+          this.ctx.fillStyle = 
+gba(46, 204, 113, );
+          this.ctx.fillRect(px - 4, py - 4, 24, 24);
+          this.ctx.strokeStyle = '#2ed573';
+          this.ctx.lineWidth = 2;
+          this.ctx.strokeRect(px - 4, py - 4, 24, 24);
+          this.renderSignboard(px + 8, py + 26, '🏡 Kembali ke Desa');
         }
       }
     }
 
-    this.farm.monsters.forEach(m => {
-      const img = m.type === 'slime' ? this.assets.slime_monster : this.assets.skeleton_monster;
-      if (img) {
-        const frame = Math.floor(m.anim) % 4;
-        let row = m.dir === 'down' ? 0 : (m.dir === 'up' ? 2 : 1);
-        this.ctx.save();
-        if (m.dir === 'left') {
-          this.ctx.translate(m.x + 32, m.y);
-          this.ctx.scale(-1, 1);
-          this.ctx.drawImage(img, frame * 32, row * 32, 32, 32, 0, 0, 32, 32);
-        } else {
-          this.ctx.drawImage(img, frame * 32, row * 32, 32, 32, m.x, m.y, 32, 32);
-        }
-        this.ctx.restore();
+    // 2. Y-Sorted Entities: Trees, Ancient Altar, Rocks, Crystal Ores, Stumps, Logs, Mushrooms, Monsters, Pet & Players
+    const entities = [];
 
-        this.ctx.fillStyle = 'rgba(0,0,0,0.55)';
-        this.ctx.fillRect(m.x + 4, m.y - 6, 24, 4);
-        this.ctx.fillStyle = '#e74c3c';
-        this.ctx.fillRect(m.x + 4, m.y - 6, Math.max(0, (m.hp / m.maxHp) * 24), 4);
+    // Boundary & Interior Forest Trees
+    for (let y = 0; y < this.farm.woodsRows; y++) {
+      for (let x = 0; x < this.farm.woodsCols; x++) {
+        const cell = this.farm.mysticWoodsGrid[y][x];
+        if (cell.type === 'woods_tree') {
+          const px = x * 16;
+          const py = y * 16;
+          entities.push({
+            y: py + 16,
+            render: () => {
+              const treeImg = this.assets.woods_tree_big || this.assets.tree;
+              if (treeImg) {
+                this.ctx.drawImage(treeImg, px - 16, py - 44, 48, 60);
+              }
+            }
+          });
+        }
       }
+    }
+
+    // Rich Interactive Woods Nodes
+    if (this.farm.woodsNodes) {
+      this.farm.woodsNodes.forEach(node => {
+        if (node.hp <= 0 && node.type !== 'ancient_altar') return;
+        const nx = node.x * 16;
+        const ny = node.y * 16;
+
+        entities.push({
+          y: ny + 12,
+          render: () => {
+            if (node.type === 'ancient_altar') {
+              const altarImg = this.assets.woods_ancient_altar;
+              if (altarImg) this.ctx.drawImage(altarImg, nx - 8, ny - 16, 32, 32);
+              // Runic blue magical aura
+              const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 250);
+              this.ctx.fillStyle = 
+gba(0, 210, 211, );
+              this.ctx.beginPath();
+              this.ctx.arc(nx + 8, ny, 26, 0, Math.PI * 2);
+              this.ctx.fill();
+            } else if (node.type === 'woods_ore') {
+              const oreImg = this.assets.woods_crystal_ore;
+              if (oreImg) this.ctx.drawImage(oreImg, nx, ny, 16, 16);
+              // Purple crystal sparkle
+              const shimmer = 0.5 + 0.5 * Math.sin((Date.now() + nx * 10) / 200);
+              this.ctx.fillStyle = 
+gba(155, 89, 182, );
+              this.ctx.fillRect(nx + 2, ny + 2, 12, 12);
+            } else if (node.type === 'woods_rock') {
+              const rImg = this.assets.woods_rock || this.assets.rock_node;
+              if (rImg) this.ctx.drawImage(rImg, nx, ny, 24, 24);
+            } else if (node.type === 'woods_log') {
+              const logImg = this.assets.woods_log || this.assets.log_wood;
+              if (logImg) this.ctx.drawImage(logImg, nx, ny, 32, 16);
+            } else if (node.type === 'woods_stump') {
+              const sImg = this.assets.woods_stump || this.assets.stump;
+              if (sImg) this.ctx.drawImage(sImg, nx, ny, 16, 16);
+            } else if (node.type === 'shroom_blue') {
+              const mImg = this.assets.woods_shroom_blue;
+              const f = Math.floor(Date.now() / 200) % 4;
+              if (mImg) this.ctx.drawImage(mImg, f * 16, 0, 16, 16, nx, ny, 16, 16);
+              this.ctx.fillStyle = 'rgba(72, 219, 251, 0.25)';
+              this.ctx.beginPath();
+              this.ctx.arc(nx + 8, ny + 8, 8, 0, Math.PI * 2);
+              this.ctx.fill();
+            } else if (node.type === 'shroom_red') {
+              const mImg = this.assets.woods_shroom_red;
+              const f = Math.floor(Date.now() / 200) % 4;
+              if (mImg) this.ctx.drawImage(mImg, f * 16, 0, 16, 16, nx, ny, 16, 16);
+              this.ctx.fillStyle = 'rgba(255, 107, 129, 0.25)';
+              this.ctx.beginPath();
+              this.ctx.arc(nx + 8, ny + 8, 8, 0, Math.PI * 2);
+              this.ctx.fill();
+            }
+          }
+        });
+      });
+    }
+
+    // Hostile Monsters (Slimes & Skeletons)
+    this.farm.monsters.forEach(m => {
+      if (m.hp <= 0) return;
+      entities.push({
+        y: m.y + 16,
+        render: () => {
+          const img = m.type === 'slime' ? this.assets.slime_monster : this.assets.skeleton_monster;
+          if (img) {
+            const frame = Math.floor(m.anim) % 4;
+            let row = m.dir === 'down' ? 0 : (m.dir === 'up' ? 2 : 1);
+            this.ctx.save();
+            if (m.dir === 'left') {
+              this.ctx.translate(m.x + 32, m.y);
+              this.ctx.scale(-1, 1);
+              this.ctx.drawImage(img, frame * 32, row * 32, 32, 32, 0, 0, 32, 32);
+            } else {
+              this.ctx.drawImage(img, frame * 32, row * 32, 32, 32, m.x, m.y, 32, 32);
+            }
+            this.ctx.restore();
+
+            // Monster Health Bar
+            this.ctx.fillStyle = 'rgba(0,0,0,0.65)';
+            this.ctx.fillRect(m.x + 4, m.y - 8, 24, 4);
+            this.ctx.fillStyle = '#e74c3c';
+            this.ctx.fillRect(m.x + 4, m.y - 8, Math.max(0, (m.hp / m.maxHp) * 24), 4);
+          }
+        }
+      });
     });
 
-    this.renderCharacter(this.player, true);
+    // Companion Pet Follower & Combat Assistant
+    if (this.farm.activePet) {
+      entities.push({
+        y: this.pet.y + 16,
+        render: () => {
+          const img = this.assets[this.farm.activePet.type];
+          if (img) {
+            const frame = Math.floor(this.pet.anim || 0) % 4;
+            const isBig = (this.farm.activePet.type === 'pet_piggy' || this.farm.activePet.type === 'pet_sheep');
+            const fw = isBig ? 32 : 16;
+            const fh = isBig ? 32 : 16;
+            const dw = isBig ? 24 : 18;
+            const dh = isBig ? 24 : 18;
+
+            this.ctx.save();
+            if (this.pet.dir === 'left') {
+              this.ctx.translate(this.pet.x + dw, this.pet.y);
+              this.ctx.scale(-1, 1);
+              this.ctx.drawImage(img, frame * fw, 0, fw, fh, 0, 0, dw, dh);
+            } else {
+              this.ctx.drawImage(img, frame * fw, 0, fw, fh, this.pet.x, this.pet.y, dw, dh);
+            }
+            this.ctx.restore();
+
+            // Combat Lunge indicator
+            if (this.pet.attackTimer > 0) {
+              this.ctx.fillStyle = '#f1c40f';
+              this.ctx.font = '10px sans-serif';
+              this.ctx.fillText('🐾 Cakar!', this.pet.x + 2, this.pet.y - 6);
+            }
+          }
+        }
+      });
+    }
+
+    // Players
+    entities.push({
+      y: this.player.y + 24,
+      render: () => this.renderCharacter(this.player, true)
+    });
+
     if (this.partner.active && this.partner.location === 'woods') {
-      this.renderCharacter(this.partner, false);
+      entities.push({
+        y: this.partner.y + 24,
+        render: () => this.renderCharacter(this.partner, false)
+      });
+    }
+
+    // Render sorted entities from top to bottom
+    entities.sort((a, b) => a.y - b.y).forEach(e => e.render());
+
+    // 3. Ambient Forest Floating Spores & Fireflies
+    const time = Date.now() / 1000;
+    for (let i = 0; i < 14; i++) {
+      const fx = ((i * 47 + time * 12) % (this.farm.woodsCols * 16));
+      const fy = ((i * 31 + Math.sin(time + i) * 16 + 20) % (this.farm.woodsRows * 16));
+      const alpha = 0.3 + 0.4 * Math.sin(time * 2 + i);
+      this.ctx.fillStyle = i % 2 === 0 ? 
+gba(46, 213, 115, ) : 
+gba(165, 94, 234, );
+      this.ctx.beginPath();
+      this.ctx.arc(fx, fy, 2, 0, Math.PI * 2);
+      this.ctx.fill();
     }
   }
 
-  // --- CHARACTER SPRITES WITH 4-FRAME ATTACK CLAMP ---
+    // --- CHARACTER SPRITES WITH 4-FRAME ATTACK CLAMP ---
   renderCharacter(char, isLocal) {
     const img = char.role === 'girl' ? this.assets.player_girl : this.assets.player_boy;
     if (!img) return;
@@ -2443,6 +2802,7 @@ class Game {
     document.getElementById('btnOpenBag')?.addEventListener('click', () => this.toggleInventoryModal());
     document.getElementById('btnOpenChest')?.addEventListener('click', () => this.openChestModal());
     document.getElementById('btnOpenBots')?.addEventListener('click', () => {
+      this.updateBotModalUI();
       document.getElementById('modalBots')?.classList.remove('hidden');
     });
     document.getElementById('btnOpenSave')?.addEventListener('click', () => {
@@ -2507,6 +2867,48 @@ class Game {
     a.click();
     this.showNotification('Foto kenangan berdua berhasil disimpan ke galeri! 📷💖');
   }
+
+  // --- BOT ASSISTANTS MANAGEMENT ---
+  hireBot(botId, price) {
+    if (this.farm.unlockedBots && this.farm.unlockedBots[botId]) {
+      this.showNotification('Pembantu bot ini sudah kamu sewa dan aktif bekerja di kebun! 🤖✨');
+      return;
+    }
+    if (this.farm.coins >= price) {
+      this.farm.coins -= price;
+      if (!this.farm.unlockedBots) this.farm.unlockedBots = {};
+      this.farm.unlockedBots[botId] = true;
+      this.farm.addLovePoints(25);
+      this.farm.autoSave();
+
+      const bot = this.botManager.bots.find(b => b.id === botId);
+      if (bot) {
+        bot.say('Halo Boss! Saya siap membantu di kebun! 🤖✨', 4);
+      }
+
+      this.showNotification(`Berhasil menyewa ${botId === 'slime' ? 'Slimey Si Air 💦' : 'Boni Si Panen 🧺'}! Langsung aktif bekerja! 🎉`);
+      this.updateHUD();
+      this.updateBotModalUI();
+    } else {
+      this.showNotification(`Koin tidak mencukupi! Butuh ${price} koin cinta. 🪙`);
+    }
+  }
+
+  updateBotModalUI() {
+    const slimeBtn = document.querySelector('#botStatus_slime');
+    if (slimeBtn && this.farm.unlockedBots?.slime) {
+      slimeBtn.innerHTML = '<span style="color:#2ed573; font-weight:700;">✓ Aktif Bekerja Menyiram Ladang 💦</span>';
+    }
+    const boniBtn = document.querySelector('#botStatus_boni');
+    if (boniBtn && this.farm.unlockedBots?.boni) {
+      boniBtn.innerHTML = '<span style="color:#2ed573; font-weight:700;">✓ Aktif Bekerja Memetik Panen 🧺</span>';
+    }
+  }
 }
 
 window.Game = Game;
+window.hireBotAction = function(botId, price) {
+  if (window.game) {
+    window.game.hireBot(botId, price);
+  }
+};

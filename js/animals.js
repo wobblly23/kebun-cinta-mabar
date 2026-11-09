@@ -11,7 +11,7 @@ class FarmAnimal {
 
     this.x = x * farm.tileSize;
     this.y = y * farm.tileSize;
-    this.speed = type === 'baby_chick' ? 24 : (type === 'chicken' ? 20 : 16);
+    this.speed = type === 'baby_chick' ? 22 : (type === 'chicken' ? 18 : 14);
 
     this.dir = 'right';
     this.state = 'idle';
@@ -25,9 +25,9 @@ class FarmAnimal {
 
   update(delta) {
     this.animTimer += delta;
-    if (this.animTimer >= 0.25) {
+    if (this.animTimer >= 0.2) {
       this.animTimer = 0;
-      this.frame = (this.frame + 1) % 2;
+      this.frame = (this.frame + 1) % 4;
     }
 
     if (this.petCooldown > 0) {
@@ -95,12 +95,15 @@ class FarmAnimal {
     if (this.type === 'cow') {
       produce = { name: 'Susu Segar 🥛', id: 'milk' };
       this.farm.chest.produce.milk = (this.farm.chest.produce.milk || 0) + 1;
+      this.farm.addToInventory('milk', 1);
     } else if (this.type === 'chicken') {
       produce = { name: 'Telur Emas 🥚', id: 'egg' };
       this.farm.chest.produce.egg = (this.farm.chest.produce.egg || 0) + 1;
+      this.farm.addToInventory('egg', 1);
     } else if (this.type === 'sheep') {
       produce = { name: 'Wol Lembut 🧶', id: 'wool' };
       this.farm.chest.produce.wool = (this.farm.chest.produce.wool || 0) + 1;
+      this.farm.addToInventory('wool', 1);
     } else {
       produce = { name: 'Kasih Sayang ❤️', id: null };
     }
@@ -113,7 +116,8 @@ class FarmAnimal {
 class AnimalManager {
   constructor(farm) {
     this.farm = farm;
-    this.pastureBounds = { minX: 3, maxX: 11, minY: 3, maxY: 12 };
+    // Strictly bounded inside Mak Siti pasture enclosure (x: 2..12, y: 3..8)
+    this.pastureBounds = { minX: 3.2, maxX: 10.8, minY: 4.2, maxY: 7.2 };
     this.animals = [];
     this.syncFromFarm();
   }
