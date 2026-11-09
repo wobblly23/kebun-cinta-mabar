@@ -1077,7 +1077,7 @@ class FarmManager {
     }
 
     return {
-      version: 6,
+      version: 7,
       coins: this.coins,
       lovePoints: this.lovePoints,
       loveLevel: this.loveLevel,
@@ -1126,7 +1126,7 @@ class FarmManager {
 
   autoSave() {
     try {
-      localStorage.setItem('kebun_cinta_save_v6', JSON.stringify(this.getSnapshot()));
+      localStorage.setItem('kebun_cinta_save_v7', JSON.stringify(this.getSnapshot()));
     } catch (e) {
       console.warn('Save error:', e);
     }
@@ -1134,8 +1134,25 @@ class FarmManager {
 
   loadFromStorage() {
     try {
-      const str = localStorage.getItem('kebun_cinta_save_v6') || localStorage.getItem('kebun_cinta_save_v5');
-      if (str) this.applySnapshot(JSON.parse(str));
+      const str = localStorage.getItem('kebun_cinta_save_v7') || localStorage.getItem('kebun_cinta_save_v6') || localStorage.getItem('kebun_cinta_save_v5');
+      if (str) {
+        const data = JSON.parse(str);
+        if (!data.version || data.version < 7) {
+          data.placedFurnitureMC = [{ id: 'rug', x: 7, y: 6 }];
+        }
+        this.applySnapshot(data);
+
+        // Sanitize legacy grid so central path is always open
+        if (this.grid[12] && this.grid[12][24]) {
+          this.grid[12][24].type = 'path';
+          this.grid[12][24].collidable = false;
+        }
+        if (this.grid[12] && this.grid[12][13]) {
+          this.grid[12][13].type = 'well';
+          this.grid[12][13].collidable = true;
+        }
+        this.autoSave();
+      }
     } catch (e) {
       console.warn('Load error:', e);
     }

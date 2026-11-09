@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Kebun Cinta Kita - Game Mabar P2P</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20261109_7">
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
 <body>
@@ -54,7 +54,9 @@
       </div>
 
       <div class="lobby-footer">
-        100% P2P WebRTC Statis • Tanpa Server / Kartu Kredit • Siap Hosting Netlify & GitHub Pages!
+        100% P2P WebRTC Statis • Tanpa Server / Kartu Kredit • Siap Hosting Netlify & GitHub Pages!<br>
+        <span style="display:inline-block; margin-top:5px; font-weight:bold; color:#2ed573;">✨ Versi Game v7.0 (Desa Rapi & Interior Lengkap)</span><br>
+        <button type="button" onclick="localStorage.removeItem('kebun_cinta_save_v6'); location.reload(true);" style="margin-top:6px; font-size:11px; padding:4px 10px; background:#f1f2f6; border:1px solid #ced6e0; border-radius:6px; cursor:pointer; color:#2f3542;">🔄 Klik untuk Paksa Refresh Update Terbaru</button>
       </div>
     </div>
   </div>
@@ -357,13 +359,13 @@
     </div>
   </div>
 
-  <!-- Scripts -->
-  <script src="js/audio.js"></script>
-  <script src="js/farm.js"></script>
-  <script src="js/bots.js"></script>
-  <script src="js/animals.js"></script>
-  <script src="js/network.js"></script>
-  <script src="js/game.js"></script>
+  <!-- Scripts with Cache Busting -->
+  <script src="js/audio.js?v=20261109_7"></script>
+  <script src="js/farm.js?v=20261109_7"></script>
+  <script src="js/bots.js?v=20261109_7"></script>
+  <script src="js/animals.js?v=20261109_7"></script>
+  <script src="js/network.js?v=20261109_7"></script>
+  <script src="js/game.js?v=20261109_7"></script>
 
   <script>
     let selectedGender = 'boy';

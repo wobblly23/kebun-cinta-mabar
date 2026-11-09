@@ -171,7 +171,7 @@ class Game {
 
     for (const [key, src] of Object.entries(toLoad)) {
       const img = new Image();
-      img.src = src;
+      img.src = `${src}?v=20261109_7`;
       img.onload = () => {
         this.assets[key] = img;
         loadedCount++;
