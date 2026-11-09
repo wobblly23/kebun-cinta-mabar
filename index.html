@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Kebun Cinta Kita - Game Mabar P2P</title>
-  <link rel="stylesheet" href="style.css?v=20261109_7">
+  <link rel="stylesheet" href="style.css?v=20261109_8">
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
 <body>
@@ -115,6 +115,7 @@
       <div class="icon-btn-row">
         <button class="icon-btn" id="btnToggleSound" title="Suara">🔊</button>
         <button class="icon-btn" id="btnToggleMusic" title="Musik BGM">🎵</button>
+        <button class="icon-btn" id="btnOpenBag" onclick="game.toggleInventoryModal()" title="Tas & Inventori [B]">🎒</button>
         <button class="icon-btn" id="btnOpenChest" title="Peti Bersama">📦</button>
         <button class="icon-btn" id="btnOpenBots" title="Pekerja Bot">🤖</button>
         <button class="icon-btn" id="btnOpenSave" title="Cadangkan Kebun">💾</button>
@@ -132,53 +133,15 @@
       <button class="emote-btn" onclick="game.showEmote('🎉')">🎉</button>
     </div>
 
-    <!-- Bottom Center: Hotbar (All Core Activities: Farm, Wood, Mine, Fish, Fight) -->
-    <div class="hotbar-container">
-      <div class="hotbar-slot active" data-tool="hoe" onclick="game.selectTool('hoe')" title="Cangkul Tanah [1]">
-        <span class="key-hint">1</span>
-        <span class="slot-icon">🌾</span>
-        <span class="slot-name">Cangkul</span>
+    <!-- Bottom Center: 5-Slot Hotbar & Inventory Bag System -->
+    <div class="hotbar-wrapper">
+      <div class="hotbar-container" id="hotbarSlots">
+        <!-- Rendered dynamically by game.renderHotbar(): EXACTLY 5 SLOTS -->
       </div>
-      <div class="hotbar-slot" data-tool="water" onclick="game.selectTool('water')" title="Siram Air [2]">
-        <span class="key-hint">2</span>
-        <span class="slot-icon">💧</span>
-        <span class="slot-name">Penyiram</span>
-      </div>
-      <div class="hotbar-slot" data-tool="axe" onclick="game.selectTool('axe')" title="Tebas Kayu & Pohon [3]">
-        <span class="key-hint">3</span>
-        <span class="slot-icon">🪓</span>
-        <span class="slot-name">Kapak</span>
-      </div>
-      <div class="hotbar-slot" data-tool="pickaxe" onclick="game.selectTool('pickaxe')" title="Tambang Batu & Bijih [4]">
-        <span class="key-hint">4</span>
-        <span class="slot-icon">⛏️</span>
-        <span class="slot-name">Beliung</span>
-      </div>
-      <div class="hotbar-slot" data-tool="fishing_rod" onclick="game.selectTool('fishing_rod')" title="Pancing Ikan di Danau [5]">
-        <span class="key-hint">5</span>
-        <span class="slot-icon">🎣</span>
-        <span class="slot-name">Pancing</span>
-      </div>
-      <div class="hotbar-slot" data-tool="sword_iron" onclick="game.selectTool('sword_iron')" title="Pedang Serang Monster [6]">
-        <span class="key-hint">6</span>
-        <span class="slot-icon">⚔️</span>
-        <span class="slot-name">Pedang</span>
-      </div>
-      <div class="hotbar-slot" data-tool="seed_carrot" onclick="game.selectTool('seed_carrot')" title="Tanam Bibit Wortel [7]">
-        <span class="key-hint">7</span>
-        <span class="slot-icon">🥕</span>
-        <span class="slot-name">Wortel</span>
-      </div>
-      <div class="hotbar-slot" data-tool="seed_cabbage" onclick="game.selectTool('seed_cabbage')" title="Tanam Bibit Kubis [8]">
-        <span class="key-hint">8</span>
-        <span class="slot-icon">🥬</span>
-        <span class="slot-name">Kubis</span>
-      </div>
-      <div class="hotbar-slot" data-tool="flower" onclick="game.selectTool('flower')" title="Beri Hadiah Bunga Cinta [9]">
-        <span class="key-hint">9</span>
-        <span class="slot-icon">💖</span>
-        <span class="slot-name">Bunga</span>
-      </div>
+      <button class="hotbar-bag-btn" id="btnHotbarBag" onclick="game.toggleInventoryModal()" title="Buka Tas & Inventori Petani [B]">
+        <span class="bag-icon">🎒</span>
+        <span class="bag-label">Tas [B]</span>
+      </button>
     </div>
 
     <!-- Floating Chat Box (With Toggle Minimize/Expand) -->
@@ -256,6 +219,40 @@
         <button class="btn btn-secondary" onclick="game.furnitureEditMode=false; document.getElementById('modalFurniturePlacement').classList.add('hidden'); game.showNotification('Mode dekorasi selesai! 🏡');">
           Selesai Menata Perabotan
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Tas & Inventori Pemain (Drag & Drop / Swap ke 5 Slot Hotbar) -->
+  <div id="modalInventory" class="modal-overlay hidden">
+    <div class="modal-content inventory-modal-content">
+      <div class="modal-header">
+        <h3>🎒 Tas & Inventori Petani</h3>
+        <button class="modal-close" onclick="game.toggleInventoryModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="inv-quick-header">
+          <span class="inv-title">⚡ 5 Slot Sabuk Bawah (Hotbar Cepat)</span>
+          <span class="inv-subtitle">Drag item ke slot, atau klik item di bawah untuk pasang</span>
+        </div>
+        <div class="inv-hotbar-preview" id="invHotbarPreview">
+          <!-- Populated by game.renderInventoryModal() -->
+        </div>
+
+        <div class="inv-tabs">
+          <button class="inv-tab active" data-tab="all" onclick="game.switchInvTab('all')">🌟 Semua Item</button>
+          <button class="inv-tab" data-tab="tools" onclick="game.switchInvTab('tools')">🪓 Alat & Senjata</button>
+          <button class="inv-tab" data-tab="seeds" onclick="game.switchInvTab('seeds')">🌱 Bibit Tanaman</button>
+          <button class="inv-tab" data-tab="produce" onclick="game.switchInvTab('produce')">🧺 Hasil Panen & Pangan</button>
+        </div>
+
+        <div class="inventory-grid" id="inventoryItemsList">
+          <!-- Populated by game.renderInventoryModal() -->
+        </div>
+      </div>
+      <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:12px; color:#57606f;">💡 Tip: Makanan bisa dimakan langsung dengan tombol [Spasi] untuk pulihkan HP!</span>
+        <button class="btn btn-secondary" onclick="game.toggleInventoryModal()">Tutup Tas [B]</button>
       </div>
     </div>
   </div>
@@ -360,12 +357,12 @@
   </div>
 
   <!-- Scripts with Cache Busting -->
-  <script src="js/audio.js?v=20261109_7"></script>
-  <script src="js/farm.js?v=20261109_7"></script>
-  <script src="js/bots.js?v=20261109_7"></script>
-  <script src="js/animals.js?v=20261109_7"></script>
-  <script src="js/network.js?v=20261109_7"></script>
-  <script src="js/game.js?v=20261109_7"></script>
+  <script src="js/audio.js?v=20261109_8"></script>
+  <script src="js/farm.js?v=20261109_8"></script>
+  <script src="js/bots.js?v=20261109_8"></script>
+  <script src="js/animals.js?v=20261109_8"></script>
+  <script src="js/network.js?v=20261109_8"></script>
+  <script src="js/game.js?v=20261109_8"></script>
 
   <script>
     let selectedGender = 'boy';

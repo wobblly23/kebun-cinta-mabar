@@ -171,7 +171,7 @@ class Game {
 
     for (const [key, src] of Object.entries(toLoad)) {
       const img = new Image();
-      img.src = `${src}?v=20261109_7`;
+      img.src = `${src}?v=20261109_8`;
       img.onload = () => {
         this.assets[key] = img;
         loadedCount++;
@@ -191,6 +191,7 @@ class Game {
     this.setupTouchControls();
     this.setupCanvasClicks();
     this.setupHUDButtons();
+    this.renderHotbar(); // Render dynamic 5 slots hotbar on startup!
 
     requestAnimationFrame((t) => this.loop(t));
   }
@@ -212,12 +213,12 @@ class Game {
       this.keys[e.key.toLowerCase()] = true;
 
       const keyNum = parseInt(e.key);
-      if (keyNum >= 1 && keyNum <= 9) {
-        const toolMap = [
-          'hoe', 'water', 'axe', 'pickaxe', 'fishing_rod',
-          'sword_iron', 'seed_carrot', 'seed_cabbage', 'flower'
-        ];
-        this.selectTool(toolMap[keyNum - 1]);
+      if (keyNum >= 1 && keyNum <= 5) {
+        this.selectHotbarIndex(keyNum - 1);
+      }
+
+      if (e.key.toLowerCase() === 'b' || e.key.toLowerCase() === 'i') {
+        this.toggleInventoryModal();
       }
 
       if (e.key === ' ' || e.key.toLowerCase() === 'j') {
@@ -346,25 +347,235 @@ class Game {
     document.getElementById('btnToolCycle')?.addEventListener('touchstart', (e) => { e.preventDefault(); this.cycleNextTool(); });
   }
 
-  selectTool(toolId) {
-    if (toolId === 'fishing_rod' && !this.farm.unlockedTools.fishing_rod) {
-      this.showNotification('Alat pancing belum dibeli! Beli di Paman Sam (Dermaga) 🎣');
-      return;
+  // --- EXACTLY 5-SLOT HOTBAR & INVENTORY BAG SYSTEM ---
+  renderHotbar() {
+    const container = document.getElementById('hotbarSlots');
+    if (!container) return;
+    container.innerHTML = '';
+
+    for (let i = 0; i < 5; i++) {
+      const itemId = this.farm.hotbar[i];
+      const itemDef = itemId ? (window.ITEM_CATALOG[itemId] || { name: itemId, icon: '📦' }) : null;
+      const count = itemId ? (this.farm.inventory[itemId] || 0) : 0;
+      const isActive = i === this.farm.activeHotbarIndex;
+
+      const slot = document.createElement('div');
+      slot.className = `hotbar-slot ${isActive ? 'active' : ''}`;
+      slot.dataset.slotIndex = i;
+      slot.dataset.itemId = itemId || '';
+      slot.title = itemDef ? `${itemDef.name} [${i + 1}]` : `Slot ${i + 1} (Kosong - Pasang lewat Tas [B])`;
+
+      // Allow dragging between hotbar slots
+      slot.draggable = !!itemId;
+      slot.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', JSON.stringify({ source: 'hotbar', fromIndex: i, itemId }));
+      });
+      slot.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        slot.classList.add('drag-over');
+      });
+      slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+      slot.addEventListener('drop', (e) => {
+        e.preventDefault();
+        slot.classList.remove('drag-over');
+        try {
+          const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+          if (data.source === 'hotbar') {
+            this.farm.swapHotbarSlots(data.fromIndex, i);
+          } else if (data.source === 'inventory') {
+            this.farm.equipHotbarSlot(i, data.itemId);
+          }
+          this.renderHotbar();
+          if (this.isInventoryOpen) this.renderInventoryModal();
+        } catch (err) {}
+      });
+
+      slot.onclick = () => this.selectHotbarIndex(i);
+
+      slot.innerHTML = `
+        <span class="key-hint">${i + 1}</span>
+        <span class="slot-icon">${itemDef ? itemDef.icon : '➕'}</span>
+        <span class="slot-name">${itemDef ? itemDef.name.split(' ')[0] : 'Kosong'}</span>
+        ${count > 1 ? `<span class="slot-badge">${count}</span>` : ''}
+      `;
+      container.appendChild(slot);
     }
-    if ((toolId === 'sword_iron' || toolId === 'sword_gold') && !this.farm.unlockedTools[toolId]) {
-      this.showNotification('Pedang belum dibeli! Beli di Toko Senjata Borin ⚔️');
-      return;
+
+    const activeItem = this.farm.hotbar[this.farm.activeHotbarIndex];
+    this.player.selectedTool = activeItem || '';
+  }
+
+  selectHotbarIndex(idx) {
+    if (idx < 0 || idx >= 5) return;
+    this.farm.activeHotbarIndex = idx;
+    const item = this.farm.hotbar[idx];
+    this.player.selectedTool = item || '';
+    this.renderHotbar();
+    if (this.isInventoryOpen) this.renderInventoryModal();
+
+    if (item && window.ITEM_CATALOG[item]) {
+      const def = window.ITEM_CATALOG[item];
+      this.showNotification(`Memegang: ${def.icon} ${def.name}`);
     }
-    this.player.selectedTool = toolId;
-    document.querySelectorAll('.hotbar-slot').forEach(slot => {
-      slot.classList.toggle('active', slot.dataset.tool === toolId);
-    });
   }
 
   cycleNextTool() {
-    const tools = ['hoe', 'water', 'axe', 'pickaxe', 'fishing_rod', 'sword_iron', 'seed_carrot', 'seed_cabbage', 'flower'];
-    const idx = tools.indexOf(this.player.selectedTool);
-    this.selectTool(tools[(idx + 1) % tools.length]);
+    const nextIdx = (this.farm.activeHotbarIndex + 1) % 5;
+    this.selectHotbarIndex(nextIdx);
+  }
+
+  toggleInventoryModal() {
+    const modal = document.getElementById('modalInventory');
+    if (!modal) return;
+    this.isInventoryOpen = modal.classList.toggle('hidden') ? false : true;
+    if (this.isInventoryOpen) {
+      this.currentInvTab = this.currentInvTab || 'all';
+      this.renderInventoryModal();
+    }
+  }
+
+  switchInvTab(tabName) {
+    this.currentInvTab = tabName;
+    document.querySelectorAll('.inv-tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.tab === tabName);
+    });
+    this.renderInventoryModal();
+  }
+
+  renderInventoryModal() {
+    const previewContainer = document.getElementById('invHotbarPreview');
+    const itemsList = document.getElementById('inventoryItemsList');
+    if (!previewContainer || !itemsList) return;
+
+    // 1. Render 5 Quick Hotbar Preview Slots (Drag & Drop Target / Click to unequip)
+    previewContainer.innerHTML = '';
+    for (let i = 0; i < 5; i++) {
+      const itemId = this.farm.hotbar[i];
+      const itemDef = itemId ? (window.ITEM_CATALOG[itemId] || { name: itemId, icon: '📦' }) : null;
+      const count = itemId ? (this.farm.inventory[itemId] || 0) : 0;
+      const isActive = i === this.farm.activeHotbarIndex;
+
+      const pSlot = document.createElement('div');
+      pSlot.className = `inv-preview-slot ${isActive ? 'active-slot' : ''}`;
+      pSlot.title = itemDef ? `${itemDef.name} - Klik untuk lepas dari slot sabuk` : `Slot ${i + 1} Kosong (Drag item ke sini)`;
+
+      pSlot.addEventListener('dragover', (e) => { e.preventDefault(); pSlot.classList.add('drag-over'); });
+      pSlot.addEventListener('dragleave', () => pSlot.classList.remove('drag-over'));
+      pSlot.addEventListener('drop', (e) => {
+        e.preventDefault();
+        pSlot.classList.remove('drag-over');
+        try {
+          const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+          if (data.source === 'inventory') {
+            this.farm.equipHotbarSlot(i, data.itemId);
+          } else if (data.source === 'hotbar') {
+            this.farm.swapHotbarSlots(data.fromIndex, i);
+          }
+          this.renderHotbar();
+          this.renderInventoryModal();
+        } catch (err) {}
+      });
+
+      pSlot.onclick = () => {
+        if (itemId) {
+          this.farm.hotbar[i] = null;
+          this.renderHotbar();
+          this.renderInventoryModal();
+        } else {
+          this.selectHotbarIndex(i);
+        }
+      };
+
+      pSlot.innerHTML = `
+        <span class="key-hint">${i + 1}</span>
+        <span style="font-size:22px;">${itemDef ? itemDef.icon : '➕'}</span>
+        <span style="font-size:9.5px; font-weight:700; color:#2f3542; margin-top:2px;">${itemDef ? itemDef.name.split(' ')[0] : 'Kosong'}</span>
+        ${count > 1 ? `<span class="slot-badge">${count}</span>` : ''}
+      `;
+      previewContainer.appendChild(pSlot);
+    }
+
+    // 2. Render Bag Grid based on active Tab
+    itemsList.innerHTML = '';
+    const tab = this.currentInvTab || 'all';
+    const entries = Object.entries(this.farm.inventory).filter(([k, v]) => v > 0);
+
+    if (entries.length === 0) {
+      itemsList.innerHTML = '<div style="grid-column: 1/-1; text-align:center; color:#747d8c; padding:20px;">Tas masih kosong! Beli bibit di Toko Pak Budi atau mancing di dermaga ya~ 🎒</div>';
+      return;
+    }
+
+    entries.forEach(([itemId, count]) => {
+      const def = window.ITEM_CATALOG[itemId] || { id: itemId, name: itemId, icon: '📦', category: 'tools', desc: '' };
+
+      if (tab !== 'all' && def.category !== tab) return;
+
+      const isEquipped = this.farm.hotbar.includes(itemId);
+      const card = document.createElement('div');
+      card.className = 'inv-item-card';
+      card.draggable = true;
+
+      card.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', JSON.stringify({ source: 'inventory', itemId }));
+      });
+
+      let actionButtons = '';
+      if (def.type === 'food' && def.heal) {
+        actionButtons += `<button class="btn-eat-food" onclick="game.eatFoodAction('${itemId}')">Makan (+${def.heal} HP)</button>`;
+      }
+      actionButtons += `<button class="btn-equip-slot" onclick="game.equipItemToHotbar('${itemId}')">${isEquipped ? '✓ Terpasang' : '+ Pasang ke Sabuk'}</button>`;
+
+      card.innerHTML = `
+        <div class="inv-card-top">
+          <span class="inv-card-icon">${def.icon}</span>
+          <div class="inv-card-info">
+            <span class="inv-card-name" title="${def.name}">${def.name}</span>
+            <span class="inv-card-count">x${count}</span>
+          </div>
+        </div>
+        <p class="inv-card-desc">${def.desc || ''}</p>
+        <div class="inv-card-actions">
+          ${actionButtons}
+        </div>
+      `;
+      itemsList.appendChild(card);
+    });
+  }
+
+  equipItemToHotbar(itemId) {
+    const existingIdx = this.farm.hotbar.indexOf(itemId);
+    if (existingIdx !== -1) {
+      this.selectHotbarIndex(existingIdx);
+      this.showNotification(`${window.ITEM_CATALOG[itemId]?.name || itemId} dipilih di Slot ${existingIdx + 1}!`);
+      this.renderHotbar();
+      this.renderInventoryModal();
+      return;
+    }
+
+    let targetIdx = this.farm.activeHotbarIndex;
+    if (this.farm.hotbar[targetIdx]) {
+      const emptyIdx = this.farm.hotbar.findIndex(s => !s);
+      if (emptyIdx !== -1) targetIdx = emptyIdx;
+    }
+
+    this.farm.equipHotbarSlot(targetIdx, itemId);
+    this.selectHotbarIndex(targetIdx);
+    this.renderHotbar();
+    this.renderInventoryModal();
+    this.showNotification(`${window.ITEM_CATALOG[itemId]?.name || itemId} dipasang ke Slot ${targetIdx + 1}! ✨`);
+  }
+
+  eatFoodAction(itemId) {
+    const res = this.farm.eatFood(itemId);
+    if (res) {
+      if (window.soundSystem) window.soundSystem.playHarvest();
+      this.screenFlashGreen = 0.25;
+      this.showDamage(this.player.x + 16, this.player.y - 12, `+${res.healed} HP ❤️`, '#2ed573');
+      this.showNotification(`Memakan ${res.name}! Memulihkan +${res.healed} HP! 😋❤️`);
+      this.renderHotbar();
+      if (this.isInventoryOpen) this.renderInventoryModal();
+      this.updateHUD();
+    }
   }
 
   getTargetTileCoords() {
@@ -574,16 +785,39 @@ class Game {
   }
 
   performToolAction() {
+    const currentItem = this.farm.hotbar[this.farm.activeHotbarIndex];
+    if (!currentItem) {
+      this.showNotification('Slot kosong! Tekan [B] untuk membuka tas dan pasang alat/bibit.');
+      return;
+    }
+
+    // 1. Food Consumption
+    const itemDef = window.ITEM_CATALOG[currentItem];
+    if (itemDef && itemDef.type === 'food' && itemDef.heal) {
+      this.eatFoodAction(currentItem);
+      return;
+    }
+
+    // 2. Gift Flower
+    if (currentItem === 'flower') {
+      this.triggerCoupleKiss(false);
+      this.showEmote('🌸');
+      this.showNotification('Menebar bunga mawar cinta harum untuk Aurel! 💖🌸');
+      return;
+    }
+
     const { tx, ty } = this.getTargetTileCoords();
     const loc = this.farm.currentLocation;
 
-    if (loc === 'woods' || this.player.selectedTool.startsWith('sword_')) {
+    // 3. Combat with Weapon or in Mystic Woods
+    if (loc === 'woods' || currentItem.startsWith('sword_')) {
       this.player.currentAction = 'action';
-      this.player.actionTimer = 0.22;
-      this.player.slashTimer = 0.2;
+      this.player.actionType = 'sword';
+      this.player.actionTimer = 0.35;
+      this.player.slashTimer = 0.3;
       if (window.soundSystem) window.soundSystem.playSwordSwing();
 
-      const dmg = this.player.selectedTool === 'sword_gold' ? 50 : 25;
+      const dmg = currentItem === 'sword_gold' ? 50 : 25;
       const res = this.farm.attackMonster(this.player.x + 16, this.player.y + 16, dmg);
       if (res) {
         if (res.defeated) {
@@ -598,15 +832,16 @@ class Game {
       return;
     }
 
-    this.performActionOnTile(tx, ty);
+    // 4. Farming / Woodcutting / Mining / Fishing
+    this.performActionOnTile(tx, ty, currentItem);
   }
 
-  performActionOnTile(tx, ty) {
+  performActionOnTile(tx, ty, tool) {
     if (this.farm.currentLocation !== 'farm') return;
 
-    const tool = this.player.selectedTool;
     this.player.currentAction = 'action';
-    this.player.actionTimer = 0.22;
+    this.player.actionType = tool;
+    this.player.actionTimer = 0.35;
 
     if (tool === 'hoe') {
       const ok = this.farm.tillSoil(tx, ty);
@@ -614,6 +849,8 @@ class Game {
         if (window.soundSystem) window.soundSystem.playTill();
         this.createDirtParticles(tx * 16 + 8, ty * 16 + 8);
         this.network.send({ type: 'action_till', x: tx, y: ty });
+      } else {
+        this.showNotification('Arahkan cangkul ke rumput untuk membuat petak ladang subur! 🌾');
       }
     } else if (tool === 'water') {
       this.waterTile(tx, ty);
@@ -621,26 +858,27 @@ class Game {
       this.chopResource(tx, ty);
     } else if (tool === 'pickaxe') {
       this.mineResource(tx, ty);
-    } else if (tool.startsWith('seed_')) {
+    } else if (tool && tool.startsWith('seed_')) {
       const cropId = tool.replace('seed_', '');
-      if ((this.farm.chest.seeds[cropId] || 0) > 0) {
+      const seedCount = this.farm.inventory[tool] || 0;
+      if (seedCount > 0) {
         const ok = this.farm.plantCrop(tx, ty, cropId);
         if (ok) {
-          this.farm.chest.seeds[cropId]--;
+          this.farm.removeFromInventory(tool, 1);
+          if (this.farm.chest.seeds[cropId] > 0) this.farm.chest.seeds[cropId]--;
           if (window.soundSystem) window.soundSystem.playPlant();
           this.createPlantParticles(tx * 16 + 8, ty * 16 + 8);
+          this.showNotification(`Berhasil menanam bibit ${window.ITEM_CATALOG[tool]?.name || cropId}! 🌱`);
           this.network.send({ type: 'action_plant', x: tx, y: ty, cropId });
+          this.renderHotbar();
         } else {
-          this.showNotification('Cangkul tanah dulu sebelum menanam bibit! 🌾');
+          this.showNotification('Cangkul tanah dulu sampai gembur sebelum menanam bibit! 🌾');
         }
       } else {
-        this.showNotification(`Bibit ${cropId} habis! Beli di Toko Pak Budi ya~ 🛒`);
+        this.showNotification(`Bibit ${cropId} habis di tas! Beli di Toko Pak Budi ya~ 🛒`);
       }
     } else if (tool === 'fishing_rod') {
       this.startFishing();
-    } else if (tool === 'flower') {
-      this.triggerCoupleKiss(false);
-      this.showEmote('🌸');
     }
 
     this.updateHUD();
@@ -652,12 +890,13 @@ class Game {
       if (window.soundSystem) window.soundSystem.playSwordSwing();
       this.createWoodChips(tx * 16 + 8, ty * 16 + 8);
       if (res.destroyed) {
-        this.showNotification(`Mendapatkan +${res.yield} Kayu! Disimpan di Peti 🪵✨`);
+        this.showNotification(`Mendapatkan +${res.yield} Kayu! Disimpan di Tas 🪵✨`);
         this.showDamage(tx * 16, ty * 16 - 8, `+${res.yield}🪵`, '#2ed573');
       } else {
         this.showDamage(tx * 16, ty * 16 - 8, `Tebas! (${res.hp} sisa)`, '#ffa502');
       }
       this.network.send({ type: 'action_chop', x: tx, y: ty });
+      this.renderHotbar();
       this.updateHUD();
     } else {
       this.showNotification('Arahkan kapak ke pohon atau batang kayu! 🪓');
@@ -671,12 +910,13 @@ class Game {
       this.createStoneGlints(tx * 16 + 8, ty * 16 + 8);
       if (res.destroyed) {
         const bonusOre = res.oreYield > 0 ? ` & +${res.oreYield} Emas 💎` : '';
-        this.showNotification(`Mendapatkan +${res.yield} Batu${bonusOre}! Disimpan di Peti 🪨✨`);
+        this.showNotification(`Mendapatkan +${res.yield} Batu${bonusOre}! Disimpan di Tas 🪨✨`);
         this.showDamage(tx * 16, ty * 16 - 8, `+${res.yield}🪨`, '#70a1ff');
       } else {
         this.showDamage(tx * 16, ty * 16 - 8, `Tambang! (${res.hp} sisa)`, '#ffa502');
       }
       this.network.send({ type: 'action_mine', x: tx, y: ty });
+      this.renderHotbar();
       this.updateHUD();
     } else {
       this.showNotification('Arahkan beliung ke batu alam atau urat bijih! ⛏️');
@@ -698,8 +938,9 @@ class Game {
       if (window.soundSystem) window.soundSystem.playHarvest();
       this.createHarvestLeafs(tx * 16 + 8, ty * 16 + 8);
       this.showDamage(tx * 16, ty * 16 - 8, `+1 ${def.icon}`, '#2ed573');
-      this.showNotification(`Memanen ${def.name}! Disimpan di Peti 🧺✨`);
+      this.showNotification(`Memanen ${def.name}! Disimpan di Tas 🧺✨`);
       this.network.send({ type: 'action_harvest', x: tx, y: ty });
+      this.renderHotbar();
       this.updateHUD();
     }
   }
@@ -775,8 +1016,9 @@ class Game {
       btnSword.textContent = '⚔️ Beli Pedang Besi (80 🪙)';
       btnSword.onclick = () => {
         if (this.farm.buyTool('sword_iron', 80)) {
-          this.showNotification('Pedang Besi Tajam siap digunakan berburu! ⚔️✨');
+          this.showNotification('Pedang Besi Tajam dimasukkan ke Tas Petani! ⚔️✨');
           modal.classList.add('hidden');
+          this.renderHotbar();
           this.updateHUD();
         } else {
           this.showNotification('Koin tidak cukup atau pedang sudah dimiliki! 🪙');
@@ -789,8 +1031,9 @@ class Game {
       btnRod.textContent = '🎣 Beli Alat Pancing Bambu (45 🪙)';
       btnRod.onclick = () => {
         if (this.farm.buyTool('fishing_rod', 45)) {
-          this.showNotification('Alat Pancing Bambu siap memancing di danau! 🎣✨');
+          this.showNotification('Alat Pancing Bambu dimasukkan ke Tas Petani! 🎣✨');
           modal.classList.add('hidden');
+          this.renderHotbar();
           this.updateHUD();
         } else {
           this.showNotification('Koin tidak cukup atau pancing sudah dibeli! 🪙');
@@ -829,7 +1072,8 @@ class Game {
         `;
         item.querySelector('button').onclick = () => {
           if (this.farm.buySeed(id)) {
-            this.showNotification(`Membeli 1 bibit ${def.name}! Disimpan di Peti 📦🌱`);
+            this.showNotification(`Membeli 1 bibit ${def.name}! Disimpan di Tas Petani 🎒🌱`);
+            this.renderHotbar();
             this.updateHUD();
           } else {
             this.showNotification('Koin tidak mencukupi! 🪙');
@@ -996,9 +1240,11 @@ class Game {
         if (window.soundSystem) window.soundSystem.playHarvest();
         this.createWaterSplashes(this.player.x + 28, this.player.y + 16);
         this.farm.chest.produce.fish = (this.farm.chest.produce.fish || 0) + 1;
+        this.farm.addToInventory('fish', 1);
         this.farm.addLovePoints(12);
-        this.showNotification('Berhasil menangkap Ikan Danau Segar! Disimpan di Peti 🐟🎉');
+        this.showNotification('Berhasil menangkap Ikan Danau Segar! Disimpan di Tas 🐟🎉');
         this.showDamage(this.player.x + 16, this.player.y - 12, '+1 🐟', '#00cec9');
+        this.renderHotbar();
       } else {
         this.showNotification('Ikan terlepas karena kamu menarik terlalu cepat!');
       }
@@ -1306,7 +1552,12 @@ class Game {
 
     if (this.player.actionTimer > 0) {
       this.player.actionTimer -= delta;
-      if (this.player.actionTimer <= 0) this.player.currentAction = 'idle';
+      const progress = 1 - Math.max(0, this.player.actionTimer / 0.35);
+      this.player.animFrame = Math.min(3, Math.floor(progress * 4));
+      if (this.player.actionTimer <= 0) {
+        this.player.currentAction = 'idle';
+        this.player.animFrame = 0;
+      }
     }
 
     if (this.player.emoteTimer > 0) {
@@ -1874,12 +2125,144 @@ class Game {
     }
     this.ctx.restore();
 
-    if (char.slashTimer > 0) {
-      this.ctx.strokeStyle = '#f1c40f';
+    // --- REAL ACTION SWING ANIMATIONS (MINING, WOODCUTTING, TILLING, WATERING, SWORD) ---
+    if (char.currentAction === 'action') {
+      const toolType = char.actionType || (isLocal ? this.farm.hotbar[this.farm.activeHotbarIndex] : 'sword');
+      const cx = char.x + 16;
+      const cy = char.y + 18;
+      const dir = char.dir || 'down';
+
+      let forwardX = dir === 'right' ? 14 : (dir === 'left' ? -14 : 0);
+      let forwardY = dir === 'down' ? 14 : (dir === 'up' ? -14 : 0);
+
+      this.ctx.save();
+
+      if (toolType === 'pickaxe') {
+        // Mining: Overhead downward pickaxe swing arc with bright white spark & stone glints
+        this.ctx.strokeStyle = '#ffffff';
+        this.ctx.lineWidth = 3;
+        this.ctx.beginPath();
+        const startAngle = dir === 'left' ? Math.PI * 0.8 : (dir === 'right' ? -Math.PI * 0.3 : 0);
+        this.ctx.arc(cx + forwardX, cy + forwardY, 18, startAngle, startAngle + 1.8);
+        this.ctx.stroke();
+
+        this.ctx.fillStyle = '#f1c40f';
+        this.ctx.font = '12px sans-serif';
+        this.ctx.fillText('⛏️', cx + forwardX * 0.8, cy + forwardY * 0.8);
+      } else if (toolType === 'axe') {
+        // Woodcutting: Sweeping white blade swoosh trail + flying woodchips
+        this.ctx.strokeStyle = '#e0f7fa';
+        this.ctx.lineWidth = 3.5;
+        this.ctx.beginPath();
+        this.ctx.arc(cx + forwardX, cy + forwardY, 20, -0.6, 1.6);
+        this.ctx.stroke();
+
+        this.ctx.fillStyle = '#ffb142';
+        this.ctx.font = '12px sans-serif';
+        this.ctx.fillText('🪓', cx + forwardX * 0.8, cy + forwardY * 0.8);
+      } else if (toolType === 'hoe') {
+        // Tilling: Hoe arc digging downward into soil
+        this.ctx.strokeStyle = '#d7a15c';
+        this.ctx.lineWidth = 2.5;
+        this.ctx.beginPath();
+        this.ctx.arc(cx + forwardX, cy + forwardY, 16, 0.2, 2.2);
+        this.ctx.stroke();
+
+        this.ctx.font = '12px sans-serif';
+        this.ctx.fillText('🌾', cx + forwardX * 0.8, cy + forwardY * 0.8);
+      } else if (toolType === 'water') {
+        // Watering: Water can tilted + cascading water droplet stream
+        this.ctx.font = '14px sans-serif';
+        this.ctx.fillText('💧', cx + forwardX, cy + forwardY);
+        this.ctx.strokeStyle = '#00d2d3';
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx + forwardX * 0.5, cy + forwardY * 0.5);
+        this.ctx.lineTo(cx + forwardX, cy + forwardY + 8);
+        this.ctx.stroke();
+      } else {
+        // Combat Sword Slash Crescent
+        this.ctx.strokeStyle = '#f1c40f';
+        this.ctx.lineWidth = 3;
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, 22, -0.5, 1.5);
+        this.ctx.stroke();
+      }
+
+      this.ctx.restore();
+    }
+
+    // --- FISHING ANIMATION: BAMBOO ROD, CURVED LINE, FLOATING BOBBER & BITE ALERT ---
+    if (char.isFishing) {
+      this.ctx.save();
+      const cx = char.x + 16;
+      const cy = char.y + 16;
+      const rodEndX = cx + (char.dir === 'left' ? -22 : 22);
+      const rodEndY = cy - 8;
+
+      // 1. Bamboo Fishing Rod
+      this.ctx.strokeStyle = '#d35400';
       this.ctx.lineWidth = 2.5;
       this.ctx.beginPath();
-      this.ctx.arc(char.x + 16, char.y + 16, 22, -0.5, 1.5);
+      this.ctx.moveTo(cx + (char.dir === 'left' ? -4 : 4), cy + 2);
+      this.ctx.lineTo(rodEndX, rodEndY);
       this.ctx.stroke();
+
+      // 2. High-Tensile Curved Fishing Line into Water
+      const bobberX = rodEndX + (char.dir === 'left' ? -28 : 28);
+      const bobberY = cy + 12;
+
+      this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+      this.ctx.lineWidth = 1;
+      this.ctx.beginPath();
+      this.ctx.moveTo(rodEndX, rodEndY);
+      this.ctx.quadraticCurveTo((rodEndX + bobberX) / 2, rodEndY - 10, bobberX, bobberY);
+      this.ctx.stroke();
+
+      // 3. Floating Red & White Bobber with Water Ripples
+      const wave = Math.sin(Date.now() / 200) * 1.5;
+      this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+      this.ctx.lineWidth = 1.5;
+      this.ctx.beginPath();
+      this.ctx.ellipse(bobberX, bobberY + wave, 6, 3, 0, 0, Math.PI * 2);
+      this.ctx.stroke();
+
+      // Bobber float
+      this.ctx.fillStyle = '#ff4757';
+      this.ctx.beginPath();
+      this.ctx.arc(bobberX, bobberY - 2 + wave, 3, Math.PI, 0);
+      this.ctx.fill();
+      this.ctx.fillStyle = '#ffffff';
+      this.ctx.beginPath();
+      this.ctx.arc(bobberX, bobberY - 2 + wave, 3, 0, Math.PI);
+      this.ctx.fill();
+
+      // 4. Fish Bite Alert Bubble
+      if (char.fishingBite) {
+        const pulse = 1 + 0.15 * Math.sin(Date.now() / 100);
+        this.ctx.save();
+        this.ctx.translate(cx, cy - 24);
+        this.ctx.scale(pulse, pulse);
+        this.ctx.font = 'bold 11px sans-serif';
+        this.ctx.fillStyle = '#ff4757';
+        this.ctx.fillText('❗ TARIK!', 0, 0);
+        this.ctx.restore();
+      }
+
+      this.ctx.restore();
+    }
+
+    // --- HELD ITEM IN HAND (Idle / Walk) ---
+    if (!char.isFishing && char.currentAction !== 'action') {
+      const heldId = isLocal ? this.farm.hotbar[this.farm.activeHotbarIndex] : null;
+      if (heldId && window.ITEM_CATALOG && window.ITEM_CATALOG[heldId]) {
+        this.ctx.save();
+        this.ctx.font = '11px sans-serif';
+        const hx = char.x + (char.dir === 'left' ? 4 : 20);
+        const hy = char.y + 18 + (char.isMoving ? Math.sin(char.animFrame * 2) * 1.5 : 0);
+        this.ctx.fillText(window.ITEM_CATALOG[heldId].icon, hx, hy);
+        this.ctx.restore();
+      }
     }
 
     this.renderNameTag(char.x + 16, char.y + 3, `${char.name} ${char.role === 'girl' ? '🌸' : '🌱'}`, isLocal ? 'rgba(0,0,0,0.55)' : 'rgba(235,77,75,0.75)');
@@ -2057,6 +2440,7 @@ class Game {
       }
     });
 
+    document.getElementById('btnOpenBag')?.addEventListener('click', () => this.toggleInventoryModal());
     document.getElementById('btnOpenChest')?.addEventListener('click', () => this.openChestModal());
     document.getElementById('btnOpenBots')?.addEventListener('click', () => {
       document.getElementById('modalBots')?.classList.remove('hidden');

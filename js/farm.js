@@ -105,6 +105,45 @@ const FURNITURE_DEFINITIONS = {
   crate_merchant: { id: 'crate_merchant', name: 'Kotak Sayur Pedagang 📦', price: 40, icon: '📦', w: 2, h: 2, desc: 'Kotak kayu penuh hasil panen segar toko.' }
 };
 
+const ITEM_CATALOG = {
+  // 1. Alat Kerja & Senjata
+  hoe: { id: 'hoe', category: 'tools', type: 'tool', name: 'Cangkul Baja', icon: '🌾', desc: 'Mencangkul tanah berumput menjadi petak ladang subur.' },
+  water: { id: 'water', category: 'tools', type: 'tool', name: 'Penyiram Air', icon: '💧', desc: 'Menyiram air pada tanah agar bibit cepat tumbuh mekar.' },
+  axe: { id: 'axe', category: 'tools', type: 'tool', name: 'Kapak Penebang', icon: '🪓', desc: 'Menebang pohon dan batang kayu untuk bahan kerajinan.' },
+  pickaxe: { id: 'pickaxe', category: 'tools', type: 'tool', name: 'Beliung Tambang', icon: '⛏️', desc: 'Menambang bebatuan dan bongkahan bijih emas berharga.' },
+  fishing_rod: { id: 'fishing_rod', category: 'tools', type: 'tool', name: 'Pancing Bambu', icon: '🎣', desc: 'Memancing ikan segar di tepi danau yang tenang.' },
+  sword_iron: { id: 'sword_iron', category: 'tools', type: 'weapon', name: 'Pedang Besi Tempa', icon: '⚔️', desc: 'Pedang tajam untuk berburu monster di Hutan Misterius.' },
+  flower: { id: 'flower', category: 'tools', type: 'gift', name: 'Bunga Mawar Cinta', icon: '💖', desc: 'Bunga mawar merah harum untuk dihadiahkan kepada kekasih.' },
+
+  // 2. Bibit Tanaman Lengkap
+  seed_carrot: { id: 'seed_carrot', category: 'seeds', type: 'seed', cropId: 'carrot', name: 'Bibit Wortel', icon: '🥕', desc: 'Wortel manis renyah (Tumbuh 25 detik).' },
+  seed_cabbage: { id: 'seed_cabbage', category: 'seeds', type: 'seed', cropId: 'cabbage', name: 'Bibit Kubis', icon: '🥬', desc: 'Kubis hijau segar berlapis (Tumbuh 35 detik).' },
+  seed_potato: { id: 'seed_potato', category: 'seeds', type: 'seed', cropId: 'potato', name: 'Bibit Kentang', icon: '🥔', desc: 'Kentang emas gurih lezat (Tumbuh 50 detik).' },
+  seed_beetroot: { id: 'seed_beetroot', category: 'seeds', type: 'seed', cropId: 'beetroot', name: 'Bibit Bit Merah', icon: '🍠', desc: 'Bit merah kaya nutrisi (Tumbuh 65 detik).' },
+  seed_cauliflower: { id: 'seed_cauliflower', category: 'seeds', type: 'seed', cropId: 'cauliflower', name: 'Bibit Kembang Kol', icon: '🥦', desc: 'Kembang kol putih mekar (Tumbuh 80 detik).' },
+  seed_pumpkin: { id: 'seed_pumpkin', category: 'seeds', type: 'seed', cropId: 'pumpkin', name: 'Bibit Labu Kuning', icon: '🎃', desc: 'Labu emas besar bernilai jual tinggi (Tumbuh 110 detik).' },
+  seed_radish: { id: 'seed_radish', category: 'seeds', type: 'seed', cropId: 'radish', name: 'Bibit Lobak', icon: '🥗', desc: 'Lobak renyah penyehat badan (Tumbuh 40 detik).' },
+  seed_wheat: { id: 'seed_wheat', category: 'seeds', type: 'seed', cropId: 'wheat', name: 'Bibit Gandum', icon: '🌾', desc: 'Gandum emas untuk membuat roti harum (Tumbuh 55 detik).' },
+
+  // 3. Hasil Panen, Ikan, & Bahan Baku
+  carrot: { id: 'carrot', category: 'produce', type: 'food', name: 'Wortel Manis', icon: '🥕', heal: 20, desc: 'Bisa dimakan untuk memulihkan +20 HP, atau dijual ke toko.' },
+  cabbage: { id: 'cabbage', category: 'produce', type: 'food', name: 'Kubis Segar', icon: '🥬', heal: 28, desc: 'Bisa dimakan untuk memulihkan +28 HP, atau dijual ke toko.' },
+  potato: { id: 'potato', category: 'produce', type: 'food', name: 'Kentang Emas', icon: '🥔', heal: 35, desc: 'Bisa dimakan untuk memulihkan +35 HP, atau dijual ke toko.' },
+  beetroot: { id: 'beetroot', category: 'produce', type: 'food', name: 'Bit Merah Manis', icon: '🍠', heal: 45, desc: 'Bisa dimakan untuk memulihkan +45 HP, atau dijual ke toko.' },
+  cauliflower: { id: 'cauliflower', category: 'produce', type: 'food', name: 'Kembang Kol', icon: '🥦', heal: 60, desc: 'Bisa dimakan untuk memulihkan +60 HP, atau dijual ke toko.' },
+  pumpkin: { id: 'pumpkin', category: 'produce', type: 'food', name: 'Labu Emas', icon: '🎃', heal: 85, desc: 'Bisa dimakan untuk memulihkan +85 HP, atau dijual dengan harga tinggi.' },
+  radish: { id: 'radish', category: 'produce', type: 'food', name: 'Lobak Putih', icon: '🥗', heal: 30, desc: 'Bisa dimakan untuk memulihkan +30 HP, atau dijual ke toko.' },
+  wheat: { id: 'wheat', category: 'produce', type: 'material', name: 'Gandum Panen', icon: '🌾', desc: 'Gandum emas melambai untuk dijual ke pedagang.' },
+  fish: { id: 'fish', category: 'produce', type: 'food', name: 'Ikan Danau Segar', icon: '🐟', heal: 45, desc: 'Tangkapan ikan danau segar (+45 HP saat dimakan).' },
+  milk: { id: 'milk', category: 'produce', type: 'food', name: 'Susu Sapi Murni', icon: '🥛', heal: 35, desc: 'Susu segar dari sapi Mak Siti (+35 HP).' },
+  egg: { id: 'egg', category: 'produce', type: 'food', name: 'Telur Ayam Segar', icon: '🥚', heal: 15, desc: 'Telur ayam segar kaya protein (+15 HP).' },
+  wool: { id: 'wool', category: 'produce', type: 'material', name: 'Wol Domba Lembut', icon: '🧶', desc: 'Bahan wol hangat berkualitas tinggi.' },
+  wood: { id: 'wood', category: 'produce', type: 'material', name: 'Kayu Glondong', icon: '🪵', desc: 'Bahan kayu dari pohon dan batang tebangan.' },
+  stone: { id: 'stone', category: 'produce', type: 'material', name: 'Batu Kali', icon: '🪨', desc: 'Batu hasil tambangan untuk dijual.' },
+  ore: { id: 'ore', category: 'produce', type: 'material', name: 'Bijih Emas Murni', icon: '💎', desc: 'Bongkahan bijih emas langka bernilai tinggi!' },
+  monster_gel: { id: 'monster_gel', category: 'produce', type: 'material', name: 'Gel Monster', icon: '🧪', desc: 'Bahan berharga hasil buruan monster Hutan Misterius.' }
+};
+
 const LOVE_LEVEL_TITLES = [
   "Pasangan Pemula 🌱", "Teman Berkebun Mesra 🍃", "Kekasih Penuh Semangat 🌸",
   "Petani Saling Cinta 💖", "Duet Petani Idaman 🌾", "Cinta Merekah Indah 🌺",
@@ -143,6 +182,22 @@ class FarmManager {
       sword_iron: false,
       sword_gold: false,
       flower: true
+    };
+
+    // Exactly 5 Quick Slots in Hotbar
+    this.hotbar = ['hoe', 'water', 'axe', 'pickaxe', 'seed_carrot'];
+    this.activeHotbarIndex = 0;
+
+    // Player Bag / Inventory: { [itemId]: count }
+    this.inventory = {
+      hoe: 1,
+      water: 1,
+      axe: 1,
+      pickaxe: 1,
+      flower: 99,
+      seed_carrot: 4,
+      seed_cabbage: 2,
+      seed_potato: 2
     };
 
     this.unlockedBots = { slime: false, boni: false, chicky: false };
@@ -555,8 +610,11 @@ class FarmManager {
       const yieldOre = isOre ? (1 + Math.floor(Math.random() * 2)) : 0;
       this.chest.produce.stone = (this.chest.produce.stone || 0) + yieldStone;
       if (isOre) this.chest.produce.ore = (this.chest.produce.ore || 0) + yieldOre;
+      this.inventory.stone = (this.inventory.stone || 0) + yieldStone;
+      if (isOre) this.inventory.ore = (this.inventory.ore || 0) + yieldOre;
       node.respawn = 60; // 60s respawn
       this.addLovePoints(5);
+      this.autoSave();
       return { destroyed: true, yield: yieldStone, oreYield: yieldOre, nodeType: node.type };
     }
     return { destroyed: false, hp: node.hp };
@@ -570,11 +628,73 @@ class FarmManager {
     if (node.hp <= 0) {
       const yieldWood = 2 + Math.floor(Math.random() * 2);
       this.chest.produce.wood = (this.chest.produce.wood || 0) + yieldWood;
+      this.inventory.wood = (this.inventory.wood || 0) + yieldWood;
       node.respawn = 60;
       this.addLovePoints(5);
+      this.autoSave();
       return { destroyed: true, yield: yieldWood, nodeType: node.type };
     }
     return { destroyed: false, hp: node.hp };
+  }
+
+  // --- INVENTORY & 5-SLOT HOTBAR SYSTEM ---
+  addToInventory(itemId, count = 1) {
+    if (!ITEM_CATALOG[itemId]) return;
+    this.inventory[itemId] = (this.inventory[itemId] || 0) + count;
+    // Auto equip if hotbar has an empty slot
+    if (!this.hotbar.includes(itemId)) {
+      const emptyIdx = this.hotbar.findIndex(s => !s);
+      if (emptyIdx !== -1) {
+        this.hotbar[emptyIdx] = itemId;
+      }
+    }
+    this.autoSave();
+  }
+
+  removeFromInventory(itemId, count = 1) {
+    if (!this.inventory[itemId]) return false;
+    this.inventory[itemId] -= count;
+    if (this.inventory[itemId] <= 0) {
+      delete this.inventory[itemId];
+      for (let i = 0; i < 5; i++) {
+        if (this.hotbar[i] === itemId) this.hotbar[i] = null;
+      }
+    }
+    this.autoSave();
+    return true;
+  }
+
+  equipHotbarSlot(slotIdx, itemId) {
+    if (slotIdx < 0 || slotIdx >= 5) return false;
+    if (itemId && !this.inventory[itemId]) return false;
+    this.hotbar[slotIdx] = itemId;
+    this.autoSave();
+    return true;
+  }
+
+  swapHotbarSlots(idxA, idxB) {
+    if (idxA < 0 || idxA >= 5 || idxB < 0 || idxB >= 5) return false;
+    const temp = this.hotbar[idxA];
+    this.hotbar[idxA] = this.hotbar[idxB];
+    this.hotbar[idxB] = temp;
+    this.autoSave();
+    return true;
+  }
+
+  eatFood(itemId) {
+    const item = ITEM_CATALOG[itemId];
+    if (!item || !item.heal || !this.inventory[itemId]) return null;
+    this.inventory[itemId]--;
+    if (this.inventory[itemId] <= 0) {
+      delete this.inventory[itemId];
+      for (let i = 0; i < 5; i++) {
+        if (this.hotbar[i] === itemId) this.hotbar[i] = null;
+      }
+    }
+    const healed = item.heal;
+    this.playerHp = Math.min(this.playerMaxHp, this.playerHp + healed);
+    this.autoSave();
+    return { name: item.name, healed };
   }
 
   // --- CONSUME FOOD / CROPS TO HEAL HP ---
@@ -666,6 +786,7 @@ class FarmManager {
       tile.crop = null;
       if (def) {
         this.chest.produce[cropId] = (this.chest.produce[cropId] || 0) + 1;
+        this.addToInventory(cropId, 1);
         this.addLovePoints(def.loveReward);
         this.autoSave();
       }
@@ -693,6 +814,18 @@ class FarmManager {
         this.chest.produce[prodId] = 0;
       }
     }
+
+    // Clear sold produce from bag inventory as well
+    const pKeys = ['carrot', 'cabbage', 'potato', 'beetroot', 'cauliflower', 'pumpkin', 'radish', 'wheat', 'fish', 'milk', 'egg', 'wool', 'wood', 'stone', 'ore', 'monster_gel'];
+    pKeys.forEach(pk => {
+      if (this.inventory[pk]) {
+        delete this.inventory[pk];
+        for (let i = 0; i < 5; i++) {
+          if (this.hotbar[i] === pk) this.hotbar[i] = null;
+        }
+      }
+    });
+
     this.coins += totalEarnings;
     if (totalEarnings > 0) {
       this.addLovePoints(Math.floor(totalEarnings / 5));
@@ -707,6 +840,7 @@ class FarmManager {
     if (def && this.coins >= def.seedPrice) {
       this.coins -= def.seedPrice;
       this.chest.seeds[cropId] = (this.chest.seeds[cropId] || 0) + 1;
+      this.addToInventory(`seed_${cropId}`, 1);
       this.addLovePoints(1);
       this.autoSave();
       return true;
@@ -718,6 +852,7 @@ class FarmManager {
     if (this.coins >= price && !this.unlockedTools[toolId]) {
       this.coins -= price;
       this.unlockedTools[toolId] = true;
+      this.addToInventory(toolId, 1);
       this.addLovePoints(15);
       this.autoSave();
       return true;
@@ -1091,6 +1226,8 @@ class FarmManager {
       ownedFurniture: this.ownedFurniture,
       placedFurnitureMC: this.placedFurnitureMC,
       chest: this.chest,
+      hotbar: this.hotbar,
+      inventory: this.inventory,
       tiles: compressedTiles
     };
   }
@@ -1110,6 +1247,21 @@ class FarmManager {
     if (data.ownedFurniture) this.ownedFurniture = data.ownedFurniture;
     if (data.placedFurnitureMC) this.placedFurnitureMC = data.placedFurnitureMC;
     if (data.chest) this.chest = data.chest;
+
+    if (data.hotbar && Array.isArray(data.hotbar) && data.hotbar.length === 5) {
+      this.hotbar = data.hotbar;
+    } else if (!this.hotbar || this.hotbar.length !== 5) {
+      this.hotbar = ['hoe', 'water', 'axe', 'pickaxe', 'seed_carrot'];
+    }
+
+    if (data.inventory && typeof data.inventory === 'object') {
+      this.inventory = { ...this.inventory, ...data.inventory };
+    }
+
+    // Ensure baseline starter tools exist in inventory
+    ['hoe', 'water', 'axe', 'pickaxe', 'flower'].forEach(t => {
+      if (!this.inventory[t]) this.inventory[t] = 1;
+    });
 
     if (data.tiles && Array.isArray(data.tiles)) {
       data.tiles.forEach(t => {
@@ -1183,3 +1335,4 @@ window.FarmManager = FarmManager;
 window.CROP_DEFINITIONS = CROP_DEFINITIONS;
 window.FURNITURE_DEFINITIONS = FURNITURE_DEFINITIONS;
 window.LOVE_LEVEL_TITLES = LOVE_LEVEL_TITLES;
+window.ITEM_CATALOG = ITEM_CATALOG;
