@@ -151,7 +151,11 @@ class Game {
       bookshelf: 'assets/furniture/bookshelf.png',
       cabinet: 'assets/furniture/cabinet.png',
       plant: 'assets/furniture/plant.png',
-      rug: 'assets/furniture/rug.png'
+      rug: 'assets/furniture/rug.png',
+      anvil: 'assets/furniture/anvil.png',
+      barrel_swords: 'assets/furniture/barrel_swords.png',
+      crate_merchant: 'assets/furniture/crate_merchant.png',
+      wall_wood_top: 'assets/tiles/wall_wood_top.png'
     };
 
     // Load Sunnyside Individual Stage Sprites for 8 Crops (00 to 05)
@@ -1472,7 +1476,7 @@ class Game {
           this.ctx.fillText('🪙', px + 2, py + 12);
         }
         if (tile.type === 'well' && this.assets.well) {
-          this.ctx.drawImage(this.assets.well, px - 8, py - 16, 32, 32);
+          this.ctx.drawImage(this.assets.well, px - 2, py - 24, 20, 40);
         }
 
         // --- SUNNYSIDE CROPS WITH REAL GROWTH STAGES (NO MORE PUMPKIN-ONLY GLITCH!) ---
@@ -1496,7 +1500,7 @@ class Game {
       }
     }
 
-    // Pasture Atmosphere: Hay Bales, Trough & Scarecrow
+    // Pasture Atmosphere: Hay Bales & Water Trough
     if (this.assets.hay_bale) {
       this.ctx.drawImage(this.assets.hay_bale, 3 * 16, 4 * 16, 32, 16);
       this.ctx.drawImage(this.assets.hay_bale, 10 * 16, 4 * 16, 32, 16);
@@ -1504,15 +1508,13 @@ class Game {
     if (this.assets.trough) {
       this.ctx.drawImage(this.assets.trough, 7 * 16, 4 * 16, 32, 16);
     }
-    if (this.assets.scarecrow) {
-      this.ctx.drawImage(this.assets.scarecrow, 21 * 16, 11 * 16 - 8, 32, 32);
-      this.ctx.drawImage(this.assets.scarecrow, 27 * 16, 11 * 16 - 8, 32, 32);
-    }
+
+    // Clean Flower Borders (Away from bridge entrance & road)
     if (this.assets.bush_flowers) {
-      this.ctx.drawImage(this.assets.bush_flowers, 13 * 16, 9 * 16 - 8, 32, 32);
-      this.ctx.drawImage(this.assets.bush_flowers, 35 * 16, 9 * 16 - 8, 32, 32);
-      this.ctx.drawImage(this.assets.bush_flowers, 13 * 16, 18 * 16 - 8, 32, 32);
-      this.ctx.drawImage(this.assets.bush_flowers, 35 * 16, 18 * 16 - 8, 32, 32);
+      this.ctx.drawImage(this.assets.bush_flowers, 13 * 16, 9 * 16, 32, 16);
+      this.ctx.drawImage(this.assets.bush_flowers, 27 * 16, 9 * 16, 32, 16);
+      this.ctx.drawImage(this.assets.bush_flowers, 14 * 16, 17 * 16, 32, 16);
+      this.ctx.drawImage(this.assets.bush_flowers, 28 * 16, 17 * 16, 32, 16);
     }
 
     // --- CLEAN COMPLETE BUILDINGS (NO LOOSE WINDOWS/DOORS ON GRASS!) ---
@@ -1705,74 +1707,95 @@ class Game {
     this.renderAtmosphere();
   }
 
-  // --- 2. MC HOUSE (WOODEN PLANK FLOOR & EMPTY SO PLAYERS DECORATE!) ---
-  renderMCHouse() {
+  // --- 2. UNIFIED COZY INTERIOR ROOM RENDERER ---
+  renderInteriorRoom(roomWidth, roomHeight, roomGrid, furnitureList, door, isMC) {
     const imgFloor = this.assets.floor_wood;
-    const imgWall = this.assets.wall_wood;
+    const imgWallTop = this.assets.wall_wood_top || this.assets.wall_wood;
+    const imgWallMid = this.assets.wall_wood;
 
-    for (let y = 0; y < this.farm.houseMCHeight; y++) {
-      for (let x = 0; x < this.farm.houseMCWidth; x++) {
+    // 1. Render Floor & Wall Tiles
+    for (let y = 0; y < roomHeight; y++) {
+      for (let x = 0; x < roomWidth; x++) {
         const px = x * 16;
         const py = y * 16;
-        const cell = this.farm.houseMC[y][x];
+        const cell = roomGrid[y][x];
 
         if (cell.type === 'indoor_wall') {
-          if (imgWall) this.ctx.drawImage(imgWall, px, py, 16, 16);
-          else { this.ctx.fillStyle = '#6d4c41'; this.ctx.fillRect(px, py, 16, 16); }
+          // Top 2 wall rows
+          if (y <= 1) {
+            if (imgWallTop) this.ctx.drawImage(imgWallTop, px, py, 16, 16);
+            else { this.ctx.fillStyle = '#5c3a21'; this.ctx.fillRect(px, py, 16, 16); }
+          } else {
+            // Lower wall with baseboard
+            if (imgWallMid) this.ctx.drawImage(imgWallMid, px, py, 16, 16);
+            else { this.ctx.fillStyle = '#7a4e2d'; this.ctx.fillRect(px, py, 16, 16); }
+          }
         } else {
+          // Warm honey-oak wooden plank floor
           if (imgFloor) this.ctx.drawImage(imgFloor, px, py, 16, 16);
-          else { this.ctx.fillStyle = '#d7ccc8'; this.ctx.fillRect(px, py, 16, 16); }
+          else { this.ctx.fillStyle = '#d7a15c'; this.ctx.fillRect(px, py, 16, 16); }
         }
       }
     }
 
-    this.ctx.fillStyle = '#c0392b';
-    this.ctx.fillRect(8 * 16, 11 * 16, 16, 16);
+    // Top Wall Shadow onto floor
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+    this.ctx.fillRect(16, 3 * 16, (roomWidth - 2) * 16, 6);
 
-    this.farm.placedFurnitureMC.forEach(f => {
-      const img = this.assets[f.id];
-      if (img) this.ctx.drawImage(img, f.x * 16, f.y * 16);
+    // Doorway / Welcome Mat at entrance
+    if (door) {
+      const doorX = door.x * 16;
+      const doorY = door.y * 16;
+      this.ctx.fillStyle = '#8e44ad';
+      this.ctx.fillRect(doorX, doorY, 16, 16);
+      this.ctx.fillStyle = '#f1c40f';
+      this.ctx.font = '8px sans-serif';
+      this.ctx.fillText('🚪', doorX + 4, doorY + 12);
+    }
+
+    // 2. Render Furniture (Rugs first so they lay under tables/chairs)
+    const sortedFurn = [...(furnitureList || [])].sort((a, b) => {
+      if (a.id === 'rug') return -1;
+      if (b.id === 'rug') return 1;
+      return a.y - b.y;
     });
 
+    sortedFurn.forEach(f => {
+      const img = this.assets[f.id];
+      const fx = f.x * 16;
+      const fy = f.y * 16;
+
+      if (img) {
+        this.ctx.drawImage(img, fx, fy);
+
+        // Animated warm fireplace embers if fireplace
+        if (f.id === 'fireplace') {
+          const flicker = 0.5 + 0.5 * Math.sin(Date.now() / 150);
+          this.ctx.fillStyle = `rgba(230, 126, 34, ${0.15 + flicker * 0.1})`;
+          this.ctx.beginPath();
+          this.ctx.arc(fx + 16, fy + 18, 28, 0, Math.PI * 2);
+          this.ctx.fill();
+        }
+      }
+    });
+
+    // 3. Render Players
     this.renderCharacter(this.player, true);
-    if (this.partner.active && this.partner.location === 'house_mc') {
+    if (this.partner.active && this.partner.location === (isMC ? 'house_mc' : this.farm.currentLocation)) {
       this.renderCharacter(this.partner, false);
     }
+  }
+
+  // --- 2. MC HOUSE (WOODEN PLANK FLOOR & EMPTY SO PLAYERS DECORATE!) ---
+  renderMCHouse() {
+    this.renderInteriorRoom(this.farm.houseMCWidth, this.farm.houseMCHeight, this.farm.houseMC, this.farm.placedFurnitureMC, this.farm.doorMCHouse, true);
   }
 
   // --- 3. NPC HOUSES (FULLY FURNISHED!) ---
   renderNPCHouse(loc) {
     const room = loc === 'house_budi' ? this.farm.houseBudi : (loc === 'house_siti' ? this.farm.houseSiti : this.farm.houseBlacksmith);
-    const imgFloor = this.assets.floor_wood;
-    const imgWall = this.assets.wall_wood;
-
-    for (let y = 0; y < room.h; y++) {
-      for (let x = 0; x < room.w; x++) {
-        const px = x * 16;
-        const py = y * 16;
-        const cell = room.grid[y][x];
-
-        if (cell.type === 'indoor_wall') {
-          if (imgWall) this.ctx.drawImage(imgWall, px, py, 16, 16);
-          else { this.ctx.fillStyle = '#6d4c41'; this.ctx.fillRect(px, py, 16, 16); }
-        } else {
-          if (imgFloor) this.ctx.drawImage(imgFloor, px, py, 16, 16);
-          else { this.ctx.fillStyle = '#d7ccc8'; this.ctx.fillRect(px, py, 16, 16); }
-        }
-      }
-    }
-
-    room.furniture.forEach(f => {
-      const img = this.assets[f.id];
-      if (img) this.ctx.drawImage(img, f.x * 16, f.y * 16);
-    });
-
-    this.ctx.fillStyle = '#c0392b';
-    this.ctx.fillRect(room.door.x * 16, room.door.y * 16, 16, 16);
-
-    this.renderCharacter(this.player, true);
-    if (this.partner.active && this.partner.location === loc) {
-      this.renderCharacter(this.partner, false);
+    if (room) {
+      this.renderInteriorRoom(room.w, room.h, room.grid, room.furniture, room.door, false);
     }
   }
 

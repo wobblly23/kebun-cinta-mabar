@@ -92,14 +92,17 @@ const CROP_DEFINITIONS = {
 };
 
 const FURNITURE_DEFINITIONS = {
-  bed_double: { id: 'bed_double', name: 'Ranjang Pasangan Manis 🛏️', price: 90, icon: '🛏️', w: 2, h: 2, desc: 'Ranjang empuk untuk tidur bersama menyambut pagi.' },
+  bed_double: { id: 'bed_double', name: 'Ranjang Pasangan Manis 🛏️', price: 90, icon: '🛏️', w: 2, h: 3, desc: 'Ranjang empuk untuk tidur bersama menyambut pagi.' },
   dining_table: { id: 'dining_table', name: 'Meja Makan & Kursi 🪑', price: 75, icon: '🪑', w: 2, h: 2, desc: 'Meja makan kayu untuk santap malam berdua.' },
   fireplace: { id: 'fireplace', name: 'Perapian Hangat 🔥', price: 120, icon: '🔥', w: 2, h: 2, desc: 'Menghangatkan rumah saat senja dan malam hari.' },
-  sofa: { id: 'sofa', name: 'Sofa Beludru Merah 🛋️', price: 85, icon: '🛋️', w: 2, h: 2, desc: 'Sofa nyaman untuk bersantai berdua.' },
-  rug: { id: 'rug', name: 'Karpet Hati Romantis 🧶', price: 50, icon: '🧶', w: 3, h: 2, desc: 'Karpet lembut penambah cinta di lantai rumah.' },
+  sofa: { id: 'sofa', name: 'Sofa Beludru Merah 🛋️', price: 85, icon: '🛋️', w: 3, h: 2, desc: 'Sofa nyaman untuk bersantai berdua.' },
+  rug: { id: 'rug', name: 'Karpet Tenun Romantis 🧶', price: 50, icon: '🧶', w: 3, h: 2, desc: 'Karpet lembut penambah cinta di lantai rumah.' },
   bookshelf: { id: 'bookshelf', name: 'Rak Buku Cerita 📚', price: 70, icon: '📚', w: 2, h: 2, desc: 'Koleksi buku dongeng dan resep masakan.' },
   cabinet: { id: 'cabinet', name: 'Lemari Kayu Antik 🗄️', price: 60, icon: '🗄️', w: 2, h: 2, desc: 'Lemari pakaian dan penyimpanan barang.' },
-  plant: { id: 'plant', name: 'Tanaman Hias Monstera 🪴', price: 35, icon: '🪴', w: 2, h: 2, desc: 'Menyegarkan suasana ruang keluarga.' }
+  plant: { id: 'plant', name: 'Tanaman Hias Monstera 🪴', price: 35, icon: '🪴', w: 2, h: 2, desc: 'Menyegarkan suasana ruang keluarga.' },
+  anvil: { id: 'anvil', name: 'Paron Besi Pandai 🔨', price: 100, icon: '🔨', w: 2, h: 2, desc: 'Landasan tempa besi milik pandai besi.' },
+  barrel_swords: { id: 'barrel_swords', name: 'Tong Pedang Baja ⚔️', price: 80, icon: '⚔️', w: 2, h: 2, desc: 'Tong kayu berisi pedang hasil tempaan.' },
+  crate_merchant: { id: 'crate_merchant', name: 'Kotak Sayur Pedagang 📦', price: 40, icon: '📦', w: 2, h: 2, desc: 'Kotak kayu penuh hasil panen segar toko.' }
 };
 
 const LOVE_LEVEL_TITLES = [
@@ -362,7 +365,8 @@ class FarmManager {
       for (let x = 14; x <= 21; x++) { this.grid[y][x].type = 'farmland'; this.grid[y][x].tilled = true; }
       for (let x = 27; x <= 34; x++) { this.grid[y][x].type = 'farmland'; this.grid[y][x].tilled = true; }
     }
-    this.grid[12][24].type = 'well'; this.grid[12][24].collidable = true;
+    // Covered stone well positioned scenicly beside farmland (pathway x:24 remains 100% open!)
+    this.grid[12][13].type = 'well'; this.grid[12][13].collidable = true;
 
     // 8. Scenic Lake & Pier on East (x: 36..46, y: 12..28) - 100% CLEAN BLUE WATER!
     for (let y = 12; y <= 28; y++) {
@@ -371,8 +375,8 @@ class FarmManager {
         this.grid[y][x].collidable = true;
       }
     }
-    // Wooden bridge tiles across water
-    for (let x = 36; x <= 40; x++) {
+    // Wooden bridge walkway across water (width 36..41 on row 19)
+    for (let x = 36; x <= 41; x++) {
       this.grid[19][x].type = 'bridge';
       this.grid[19][x].collidable = false;
     }
@@ -394,11 +398,11 @@ class FarmManager {
 
   initResourceNodes() {
     this.resourceNodes = [
-      // Mineable Rocks in natural rocky areas
+      // Mineable Rocks in natural rocky areas (away from bridge entrance)
       { id: 'r1', type: 'rock', x: 4, y: 16, hp: 3, maxHp: 3, respawn: 0 },
       { id: 'r2', type: 'rock', x: 5, y: 20, hp: 3, maxHp: 3, respawn: 0 },
-      { id: 'r3', type: 'rock', x: 32, y: 22, hp: 3, maxHp: 3, respawn: 0 },
-      { id: 'r4', type: 'ore', x: 33, y: 25, hp: 4, maxHp: 4, respawn: 0 },
+      { id: 'r3', type: 'rock', x: 32, y: 23, hp: 3, maxHp: 3, respawn: 0 },
+      { id: 'r4', type: 'ore', x: 33, y: 26, hp: 4, maxHp: 4, respawn: 0 },
       // Choppable Logs & Stumps naturally placed under trees
       { id: 'w1', type: 'log', x: 13, y: 2, hp: 2, maxHp: 2, respawn: 0 },
       { id: 'w2', type: 'stump', x: 30, y: 2, hp: 2, maxHp: 2, respawn: 0 },
@@ -421,33 +425,42 @@ class FarmManager {
       this.houseMC.push(row);
     }
     this.doorMCHouse = { x: 8, y: 11 };
+    // Starter welcome rug in the center
+    if (this.placedFurnitureMC.length === 0) {
+      this.placedFurnitureMC = [{ id: 'rug', x: 7, y: 6 }];
+    }
   }
 
   // --- NPC HOUSES (DIFFERENT & FULLY FURNISHED!) ---
   initNPCHouses() {
     // 1. Toko Pak Budi (14x10) - Filled with merchant goods
     this.houseBudi = this.createFurnishedRoom(14, 10, [
-      { id: 'cabinet', x: 2, y: 2 },
-      { id: 'bookshelf', x: 5, y: 2 },
-      { id: 'dining_table', x: 8, y: 4 },
-      { id: 'plant', x: 2, y: 7 },
-      { id: 'rug', x: 4, y: 5 }
+      { id: 'bookshelf', x: 2, y: 2 },
+      { id: 'crate_merchant', x: 5, y: 2 },
+      { id: 'cabinet', x: 8, y: 2 },
+      { id: 'dining_table', x: 3, y: 5 },
+      { id: 'plant', x: 10, y: 4 },
+      { id: 'rug', x: 6, y: 5 }
     ]);
 
     // 2. Mak Siti Ranch Interior (14x10) - Farmhouse style
     this.houseSiti = this.createFurnishedRoom(14, 10, [
       { id: 'bed_double', x: 2, y: 2 },
       { id: 'fireplace', x: 6, y: 2 },
-      { id: 'dining_table', x: 8, y: 5 },
-      { id: 'plant', x: 2, y: 6 }
+      { id: 'cabinet', x: 9, y: 2 },
+      { id: 'dining_table', x: 6, y: 5 },
+      { id: 'plant', x: 10, y: 5 },
+      { id: 'rug', x: 2, y: 6 }
     ]);
 
     // 3. Blacksmith Borin Interior (14x10) - Forge & Anvil
     this.houseBlacksmith = this.createFurnishedRoom(14, 10, [
       { id: 'fireplace', x: 3, y: 2 },
-      { id: 'cabinet', x: 7, y: 2 },
-      { id: 'dining_table', x: 9, y: 5 },
-      { id: 'bookshelf', x: 2, y: 5 }
+      { id: 'anvil', x: 6, y: 3 },
+      { id: 'barrel_swords', x: 9, y: 2 },
+      { id: 'cabinet', x: 10, y: 5 },
+      { id: 'dining_table', x: 3, y: 6 },
+      { id: 'bookshelf', x: 6, y: 6 }
     ]);
   }
 
@@ -507,6 +520,7 @@ class FarmManager {
       if (tx < 0 || tx >= this.houseMCWidth || ty < 0 || ty >= this.houseMCHeight) return true;
       if (this.houseMC[ty][tx].collidable) return true;
       const hitsFurn = this.placedFurnitureMC.some(f => {
+        if (f.id === 'rug') return false; // Rugs can be walked on
         const def = FURNITURE_DEFINITIONS[f.id] || { w: 1, h: 1 };
         return tx >= f.x && tx < f.x + def.w && ty >= f.y && ty < f.y + def.h;
       });
@@ -517,6 +531,7 @@ class FarmManager {
       if (tx < 0 || tx >= room.w || ty < 0 || ty >= room.h) return true;
       if (room.grid[ty][tx].collidable) return true;
       const hitsFurn = room.furniture.some(f => {
+        if (f.id === 'rug') return false; // Rugs can be walked on
         const def = FURNITURE_DEFINITIONS[f.id] || { w: 1, h: 1 };
         return tx >= f.x && tx < f.x + def.w && ty >= f.y && ty < f.y + def.h;
       });
@@ -861,10 +876,24 @@ class FarmManager {
         npc.timer = 2.5 + Math.random() * 3.5;
         if (Math.random() < 0.45) {
           npc.isMoving = true;
-          const angle = Math.random() * Math.PI * 2;
-          const radius = 10 + Math.random() * 24;
-          npc.targetX = npc.originX + Math.cos(angle) * radius;
-          npc.targetY = npc.originY + Math.sin(angle) * radius;
+          if (npc.role === 'fisher') {
+            // Paman Sam stays strictly on wooden pier walkway deck (x: 37*16 to 40*16, row y: 19*16)
+            npc.targetX = (37 + Math.random() * 3) * 16;
+            npc.targetY = 19 * 16;
+          } else {
+            const angle = Math.random() * Math.PI * 2;
+            const radius = 10 + Math.random() * 20;
+            const candX = npc.originX + Math.cos(angle) * radius;
+            const candY = npc.originY + Math.sin(angle) * radius;
+            const tx = Math.floor((candX + 8) / 16);
+            const ty = Math.floor((candY + 8) / 16);
+            if (!this.isCollidable(tx, ty, 'farm')) {
+              npc.targetX = candX;
+              npc.targetY = candY;
+            } else {
+              npc.isMoving = false;
+            }
+          }
         } else {
           npc.isMoving = false;
         }
@@ -877,12 +906,28 @@ class FarmManager {
 
         if (dist > 2) {
           const step = 18 * delta;
-          npc.x += (dx / dist) * step;
-          npc.y += (dy / dist) * step;
-          npc.anim = (npc.anim + delta * 5) % 6;
+          const nx = npc.x + (dx / dist) * step;
+          const ny = npc.y + (dy / dist) * step;
 
-          if (Math.abs(dx) > Math.abs(dy)) npc.dir = dx > 0 ? 'right' : 'left';
-          else npc.dir = dy > 0 ? 'down' : 'up';
+          if (npc.role === 'fisher') {
+            npc.x = Math.max(36.5 * 16, Math.min(40.5 * 16, nx));
+            npc.y = 19 * 16;
+            npc.anim = (npc.anim + delta * 5) % 6;
+            npc.dir = dx > 0 ? 'right' : 'left';
+          } else {
+            const nextTx = Math.floor((nx + 8) / 16);
+            const nextTy = Math.floor((ny + 8) / 16);
+            if (!this.isCollidable(nextTx, nextTy, 'farm')) {
+              npc.x = nx;
+              npc.y = ny;
+              npc.anim = (npc.anim + delta * 5) % 6;
+              if (Math.abs(dx) > Math.abs(dy)) npc.dir = dx > 0 ? 'right' : 'left';
+              else npc.dir = dy > 0 ? 'down' : 'up';
+            } else {
+              npc.isMoving = false;
+              npc.anim = 0;
+            }
+          }
         } else {
           npc.isMoving = false;
           npc.anim = 0;
