@@ -1,0 +1,325 @@
+================================================================================
+           DOKUMENTASI & CATATAN LENGKAP FITUR GAME: KEBUN CINTA KITA
+                     (2D Pixel-Art Farming RPG & Mabar Multiplayer)
+================================================================================
+
+Versi Game      : v2.4 (Full Feature Master Release)
+Teknologi       : HTML5 Canvas, Vanilla JavaScript (ES6+), CSS3 Modern
+Arsitektur      : 100% Client-Side Web (Tanpa Backend/Database Berat, Siap Host Netlify / GitHub Pages)
+Multiplayer     : WebRTC Peer-to-Peer (PeerJS Data Channel)
+Audio Engine    : Web Audio API (Synthesizer Prosedural 8-bit/16-bit)
+Platform Target : PC Desktop (Keyboard & Mouse) & Mobile Smartphone / Tablet (Touch Virtual Joystick)
+
+--------------------------------------------------------------------------------
+DAFTAR ISI:
+--------------------------------------------------------------------------------
+1.  KONSEP UTAMA & FILOSOFI GAME
+2.  SISTEM KONTROL & MULTI-PLATFORM (PC & MOBILE)
+3.  SISTEM KARAKTER & ITEM HOLDING (VISUAL TANGAN)
+4.  SISTEM INVENTORI & HOTBAR (DRAG-AND-DROP)
+5.  SISTEM PERTANIAN & PEMULIHAN PERSENTASE DARAH (HP)
+6.  SISTEM PETERNAKAN & PRODUKSI SATWA (MAK SITI)
+7.  SISTEM HEWAN PELIHARAAN PENDAMPING & PET TEMPUR (PET FOLLOWER)
+8.  SISTEM RUMAH UTAMA MC & TOKO PERABOTAN FUNGSIONAL
+9.  SISTEM DESA SUKAMAJU & 4 NPC TEMATIK
+10. SISTEM PENAMBANGAN & PENEBANGAN POHON
+11. SISTEM DANAU MEMANCING & MINIGAME IKAN
+12. SISTEM HUTAN MISTERIUS (MYSTIC WOODS) & COMBAT MONSTER
+13. SISTEM BOT PEMBANTU KEBUN OTOMATIS
+14. SISTEM WAKTU, CUACA & SIKLUS HARI
+15. SISTEM MULTIPLAYER P2P & FITUR MABAR PASANGAN
+16. SISTEM AUDIO & MUSIK PROSEDURAL
+17. RINGKASAN STRUKTUR FILE REPOSITORI
+
+================================================================================
+1. KONSEP UTAMA & FILOSOFI GAME
+================================================================================
+"Kebun Cinta Kita" adalah game simulasi pertanian RPG 2D dengan gaya pixel-art 
+yang terinspirasi dari Harvest Moon dan Stardew Valley, namun difokuskan pada 
+pengalaman bermain bersama (co-op multiplayer / mabar) dengan nuansa hangat, 
+romantis, santai, dan penuh petualangan. 
+
+Game ini tidak memerlukan instalasi aplikasi tambahan atau server game berbayar,
+cukup dibuka melalui browser (Google Chrome, Firefox, Edge, Safari di HP/Laptop).
+Semua progres tersimpan otomatis di LocalStorage browser pemain.
+
+================================================================================
+2. SISTEM KONTROL & MULTI-PLATFORM (PC & MOBILE)
+================================================================================
+Game ini otomatis mendeteksi perangkat pemain dan menyediakan dua skema kontrol:
+
+A. KONTROL PC DESKTOP:
+   - Gerakan Karakter    : Tombol [W] [A] [S] [D] atau Tombol Panah [↑] [←] [↓] [→]
+   - Aksi / Interaksi    : Tombol [E] atau Tombol [SPACEBAR] (atau Klik Kiri Mouse)
+   - Pilih Hotbar Cepat  : Tombol Angka [1], [2], [3], [4], [5]
+   - Buka Tas Inventori  : Tombol [B] atau [I]
+   - Batal / Tutup Menu  : Tombol [ESC]
+   - Chat Mesra          : Tombol [ENTER] untuk membuka dan mengirim obrolan
+
+B. KONTROL SMARTPHONE & TABLET (TOUCHSCREEN):
+   - Virtual D-Pad / Joystick di pojok kiri bawah layar untuk menggerakkan karakter secara presisi.
+   - Tombol Aksi Sentuh melingkar (Tombol Interaksi / Cangkul / Serang) di pojok kanan bawah.
+   - Quick Hotbar sentuh 5 slot di bagian bawah tengah layar.
+   - Tombol navigasi sentuh cepat untuk Tas Inventori, Toko, Kamera Foto, dan Audio.
+
+================================================================================
+3. SISTEM KARAKTER & ITEM HOLDING (VISUAL TANGAN MC)
+================================================================================
+Karakter tidak lagi hanya menampilkan stiker pasif di atas kepala, melainkan 
+memiliki sistem soket tangan dinamis:
+- Karakter memegang langsung cangkul, penyiram air, kapak penebang, beliung tambang,
+  pedang tempur kesatria, hingga bibit/hasil panen di tangannya.
+- Terdapat animasi ayunan (swing animation) sudut rotasi 45 derajat ketika pemain 
+  melakukan aksi menebas, mencangkul, memukul batu, menyiram, atau menebang pohon.
+- Indikator partikel visual (cipratan air, serpihan batu, serpihan kayu) muncul 
+  sesuai dengan arah hadap karakter (depan, belakang, kiri, kanan).
+
+================================================================================
+4. SISTEM INVENTORI & HOTBAR (DRAG-AND-DROP)
+================================================================================
+- Tampilan Utama Layar: Hanya menampilkan 5 Kotak Hotbar Aktif di bawah layar 
+  agar pandangan bermain bersih, elegan, dan tidak menutupi kebun.
+- Tas Ransel Utama (Inventory Window):
+  * Dapat dibuka dengan menekan tombol Tas [B] atau ikon ransel merah muda.
+  * Menampung seluruh perlengkapan, benih, hasil panen, bahan tambang, dan ikan.
+  * Sistem Drag-and-Drop: Pemain dapat menyeret (drag) item dari tas ransel ke salah 
+    satu dari 5 slot hotbar di bawah layar, atau menukar (swap) posisi item kapan saja.
+- Pembatasan Fungsional Item (Strict Action Context):
+  * Cangkul hanya dapat mencangkul tanah kebun.
+  * Penyiram hanya dapat membasahi petak kebun yang kering atau mengisi air di kolam.
+  * Kapak hanya dapat digunakan pada pohon dan tunggul kayu.
+  * Beliung (Pickaxe) hanya dapat menghancurkan bebatuan tambang.
+  * Pedang Tempur hanya dapat mengayun dan memberikan damage pada monster.
+  * Makanan hasil panen hanya dapat dikonsumsi saat HP karakter belum penuh.
+
+================================================================================
+5. SISTEM PERTANIAN & PEMULIHAN PERSENTASE DARAH (HP)
+================================================================================
+A. PETAK KEBUN & PAGAR RAPI:
+   - Kebun dibagi menjadi 2 petak utama (Petak Barat dan Petak Timur) di samping rumah MC.
+   - Pagar pembatas tersambung rapi (connected fence autotile) yang menyatu satu sama lain 
+     tanpa ada celah janggal atau pagar salah tempat di tengah jalan.
+   - Sistem Tanah: Kering (Normal) -> Dicangkul -> Disiram (Tanah Basah Berkilau).
+
+B. 8 JENIS TANAMAN DENGAN 6 TAHAP PERTUMBUHAN:
+   1. Wortel   : Tumbuh cepat, panen melimpah.
+   2. Jagung   : Batang tinggi, hasil berkali-kali.
+   3. Stroberi : Buah manis kesukaan pasangan (Meningkatkan Love Meter ekstra).
+   4. Gandum   : Bahan pangan pokok bernilai stabil.
+   5. Tomat    : Buah segar berwarna merah cerah.
+   6. Terong   : Sayuran ungu bergizi tinggi.
+   7. Kentang  : Umbi padat pengenyang perut.
+   8. Semangka : Buah besar langka dengan nilai jual tertinggi.
+
+C. SISTEM MAKAN HASIL PANEN (PERSENTASE HEAL HP):
+   Pemain dapat mengonsumsi tanaman langsung dari tangan/inventori untuk memulihkan 
+   persentase darah (HP) karakter ketika terluka akibat serangan monster di hutan:
+   - Makan Wortel   : Memulihkan +15% Max HP
+   - Makan Jagung   : Memulihkan +22% Max HP
+   - Makan Stroberi : Memulihkan +25% Max HP
+   - Makan Gandum   : Memulihkan +10% Max HP
+   - Makan Tomat    : Memulihkan +20% Max HP
+   - Makan Terong   : Memulihkan +20% Max HP
+   - Makan Kentang  : Memulihkan +18% Max HP
+   - Makan Semangka : Memulihkan +35% Max HP
+
+================================================================================
+6. SISTEM PETERNAKAN & PRODUKSI SATWA (MAK SITI)
+================================================================================
+- Lokasi: Peternakan Mak Siti di sebelah selatan kebun utama.
+- Kandang Peternakan memiliki desain lumbung kayu kokoh menghadap depan ke arah jalan.
+- 4 Jenis Hewan Ternak Fungsional:
+  1. Ayam  : Bertelur setiap pagi jika diberi makan pakan jagung.
+  2. Sapi  : Menghasilkan ember susu sapi murni setiap hari.
+  3. Domba : Menghasilkan wol sutra tebal yang dapat dicukur secara berkala.
+  4. Babi  : Berjalan di padang rumput dan dapat menggali jamur truffle langka.
+- Sistem Kasih Sayang Ternak: Pemain dapat memberi pakan harian dan mengelus (pet)
+  hewan setiap hari untuk meningkatkan kebahagiaan hati hewan.
+
+================================================================================
+7. SISTEM HEWAN PELIHARAAN PENDAMPING & PET TEMPUR (PET FOLLOWER)
+================================================================================
+- Sistem Pet Follower:
+  Pemain dapat memilih hewan peliharaan setia yang akan mengikuti setiap langkah 
+  kaki karakter ke mana pun pergi dengan fisika pegas mulus (spring lag motion).
+- Pilihan Pet Pendamping:
+  1. Kelinci Salju (Kelinci putih bermata jernih)
+  2. Bebek Ceria (Bebek kuning lincah)
+  3. Burung Pipit (Burung kecil yang melompat riang)
+  4. Domba Kecil (Anak domba berbulu lembut)
+  5. Babi Imut (Anak babi manis)
+  6. Slime Jinak (Slime ramah berwarna toska cerah)
+- Pet Tempur (Combat Pet Companion):
+  Saat pemain melangkah masuk ke Hutan Misterius, Pet Pendamping akan bertransformasi 
+  menjadi rekan tempur, melompat ke arah monster terdekat, mengalihkan perhatian musuh, 
+  dan memberikan bantuan serangan kecil!
+
+================================================================================
+8. SISTEM RUMAH UTAMA MC & TOKO PERABOTAN FUNGSIONAL
+================================================================================
+- Posisi Bangunan: Rumah utama MC terletak tepat di posisi tengah kebun yang prestisius 
+  dengan pintu masuk menghadap depan ke arah pemain.
+- Interior Rumah: Ruang tamu nyaman berlantai parket kayu dan dinding batu bata hangat.
+- Toko Perabotan Dalam Rumah (In-House Furniture Shop):
+  Pemain dapat menekan tombol [E] atau ikon 'Atur Perabotan Rumah' untuk membeli furnitur:
+  1. Ranjang Tidur Kayu (Bed)     : Pemain dapat tidur untuk melewati malam hari, 
+                                     mempercepat siklus keesokan pagi, dan menyembuhkan 100% HP.
+  2. Perapian Bata Api (Fireplace): Memancarkan cahaya hangat redup di malam hari 
+                                     dengan partikel percikan api menyala.
+  3. Sofa Santai Beludru (Sofa)   : Karakter dapat duduk santai memulihkan stamina perlahan.
+  4. Meja Makan Pinus (Table)     : Tempat menata santapan dan hasil kebun.
+  5. Rak Buku Cendekia (Bookshelf): Menyimpan catatan panduan bertani dan rahasia desa.
+  6. Lemari Pakaian Jati (Wardrobe): Tempat menyimpan cadangan pakaian dan aksesori.
+
+================================================================================
+9. SISTEM DESA SUKAMAJU & 4 NPC TEMATIK
+================================================================================
+Pemain dapat berjalan menelusuri jalan setapak ke desa untuk berinteraksi dengan 
+warga desa yang ramah:
+
+1. TOKO TANI PAK BUDI:
+   - Tempat membeli benih tanaman musim semi, panas, dan gugur.
+   - Tempat menjual seluruh hasil panen dengan keuntungan koin emas langsung.
+2. PETERNAKAN MAK SITI:
+   - Tempat membeli anakan ayam, sapi, domba, babi, serta pakan jerami berkualitas.
+   - Tempat menjual produk hewani (telur emas, susu segar, wol).
+3. BENGKEL PANDE BESI BORIN:
+   - Tempat membeli dan memperkuat perkakas bertani (Cangkul Tembaga, Penyiram Baja).
+   - Menempa Pedang Kesatria (Iron Sword) untuk bertarung di Hutan Misterius.
+4. DERMAGA NELAYAN PAMAN SAM:
+   - Terletak di tepi danau pemancingan yang asri.
+   - Menjual joran pancing bambu, umpan cacing tanah, dan menerima penjualan ikan segar.
+
+================================================================================
+10. SISTEM PENAMBANGAN & PENEBANGAN POHON
+================================================================================
+A. PENEBANGAN KAYU (WOODCUTTING):
+   - Pohon Oak Besar, Pohon Maple Rindang, dan Tunggul Kayu tersebar di area hutan.
+   - Mengayunkan kapak memicu animasi tebang, partikel serpihan kayu berhamburan, 
+     dan suara hentakan kapak realistis.
+   - Pohon yang roboh menghasilkan Kayu Gelondongan (Wood Log) dan Bibit Pohon.
+
+B. PERTAMBANGAN (MINING):
+   - Bongkahan Batu Kali, Bijih Tembaga (Copper Ore), dan Bongkahan Emas (Gold Ore).
+   - Menghantam batu dengan Beliung menghasilkan partikel kerikil dan suara denting logam.
+   - Hasil tambang digunakan untuk memperkuat perkakas dan membuat perabot rumah.
+
+================================================================================
+11. SISTEM DANAU MEMANCING & MINIGAME IKAN
+================================================================================
+- Danau air biru tenang dengan animasi gelombang riak air dan pantulan tepi rumput.
+- Cara Memancing:
+  1. Pilih Joran Pancing pada Hotbar, dekati tepi danau, lalu tekan [SPACE] / Aksi.
+  2. Karakter akan melempar kail dan umpan ke dalam air.
+  3. Tunggu hingga pelampung bergoyang dan tanda seru merah (!) muncul di atas kepala.
+  4. Segera tekan tombol [SPACE] untuk memulai Minigame Tarik Ikan (Tension Bar).
+  5. Tahan ketegangan senar di area hijau hingga ikan berhasil terangkat!
+- Jenis Ikan: Ikan Mas Koki, Ikan Nila, Ikan Lele Danau, Ikan Gurame Raksasa, dan Ikan Emas Hoki.
+
+================================================================================
+12. SISTEM HUTAN MISTERIUS (MYSTIC WOODS) & COMBAT MONSTER
+================================================================================
+A. LOKASI & VISUAL MAP MONSTER TERBARU:
+   - Akses melalui Portal Dimensi Mistis di pojok utara kebun.
+   - Visual Map Baru (100% Bersih, Tanpa Watermark):
+     * Permukaan tanah bertekstur rumput lumut hutan alami (Mossy Grass).
+     * Jalan setapak tanah liat berliku (Winding Dirt Trails) yang menghubungkan portal,
+       altar kuno, dan reruntuhan batu purba.
+     * Pepohonan rimbun Oak 64x80 & Maple 32x48 dengan transparansi sempurna.
+     * Objek rintangan lingkungan: Batu berlumut besar, tunggul pohon tua, batang kayu tumbang.
+     * Altar Kuno Purba (Ancient Altar) 32x32 di pusat hutan yang memancarkan aura magis.
+     * Bongkahan Kristal Amethyst bercahaya di sudut tebing.
+     * Efek kabut hutan zamrud melayang (Emerald Forest Mist) dan partikel spora magis.
+
+B. EKOSISTEM MONSTER & AI TEMPUR:
+   1. Slime Hutan Hijau (Lv.1 - HP: 20, ATK: 3)
+   2. Slime Danau Biru   (Lv.1 - HP: 25, ATK: 4)
+   3. Prajurit Tengkorak (Lv.2 - HP: 45, ATK: 8)
+   - AI Pengejar Aktif: Monster akan mendeteksi keberadaan pemain dalam radius 110 piksel 
+     dan berlari mengejar pemain secara agresif.
+   - AI Serangan Jarak Dekat: Jika jarak menyempit hingga 22 piksel, monster menyerang pemain, 
+     menyebabkan efek guncangan layar (screen shake), kedipan merah (damage flash), dan pengurangan HP.
+   - Health Bar Melayang: Bilah darah mini (20x3 piksel) dengan warna hijau-merah serta label 
+     nama dan level monster melayang tepat di atas kepala monster.
+   - Sistem Pingsan & Respawn: Jika HP pemain terkuras hingga 0, pemain pingsan dan 
+     dievakuasi kembali ke kasur rumah MC untuk beristirahat dan pulih kembali.
+
+================================================================================
+13. SISTEM BOT PEMBANTU KEBUN OTOMATIS
+================================================================================
+Bagi pemain yang ingin bersantai atau menjelajah hutan tanpa khawatir kebun terbengkalai, 
+tersedia 2 unit Bot Pekerja Otomatis:
+1. "SLIMEY" SI PENYIRAM OTOMATIS:
+   - Berkeliling mencari petak tanah yang kering lalu menyiramnya secara otomatis.
+2. "BONI" SI PEMANEN OTOMATIS:
+   - Berkeliling mendeteksi tanaman yang sudah matang sempurna, memanennya dengan hati-hati,
+     dan menyetorkannya ke dalam peti gudang kebun.
+- Pemain dapat mengaktifkan atau menonaktifkan bot melalui Panel Manajemen Bot [O].
+
+================================================================================
+14. SISTEM WAKTU, CUACA & SIKLUS HARI
+================================================================================
+- Jam Real-Time Permainan: 1 menit di dunia nyata setara dengan beberapa jam di dalam game.
+- 4 Fase Pencahayaan:
+  * Pagi Cerah  : Cahaya keemasan lembut.
+  * Siang Terik : Cahaya jernih alami.
+  * Sore Senja  : Nuansa oranye kemerahan hangat yang romantis.
+  * Malam Hari  : Kegelapan sejuk dengan lentera jalan menyala dan kunang-kunang berterbangan.
+- Sistem Cuaca Dinamis:
+  * Cerah Berawan : Cuaca standar perkebunan.
+  * Hujan Sejuk   : Air hujan turun menyejukkan kebun dan OTOMATIS menyiram seluruh tanaman!
+  * Malam Berbintang : Peluang menemukan kunang-kunang dan tanaman bercahaya.
+
+================================================================================
+15. SISTEM MULTIPLAYER P2P & FITUR MABAR PASANGAN
+================================================================================
+A. ARSITEKTUR WEBRTC PEERJS:
+   - Mabar langsung tanpa server login yang rumit.
+   - Host cukup mengklik tombol "Mabar", membagikan 6-karakter Kode Kamar (Room Code) 
+     kepada pasangan/teman, lalu pasangan memasukkan kode tersebut untuk terhubung.
+   - Sinkronisasi posisi 60 FPS, arah hadap, animasi cangkul/tebang, dan status tanaman.
+
+B. FITUR KHUSUS PASANGAN (COUPLE CO-OP):
+   - Love Meter (Meter Cinta Bersama):
+     * Tingkat keharmonisan naik setiap kali menyiram tanaman pasangan, memanen bersama, 
+       saling memberikan hadiah hasil bumi, atau mengalahkan monster bersama.
+   - Kamera Polaroid Kenangan:
+     * Tombol khusus untuk mengambil foto tangkapan layar berdua dengan bingkai polaroid 
+       bergaya retro dan tanggal hari jadian/permainan.
+   - Chat Mesra In-Game:
+     * Kotak obrolan di pojok kiri bawah dengan balon chat manis dan pintasan emoji hati.
+
+================================================================================
+16. SISTEM AUDIO & MUSIK PROSEDURAL
+================================================================================
+Game ini mengadopsi Web Audio API canggih tanpa dependensi file audio berat:
+- BGM Musik Lofi Desa Santai : Melodi akustik chiptune riang yang menenangkan hati.
+- BGM Hutan Tempur           : Alunan synthesizer bertempo cepat yang membangkitkan adrenalin.
+- Sound FX Detail:
+  * Suara langkah kaki di atas rumput dan tanah setapak.
+  * Suara cangkul menembus tanah basah.
+  * Suara cipratan air saat menyiram kebun.
+  * Suara kapak membelah kayu pohon.
+  * Suara denting beliung menghantam batu kali.
+  * Suara tebasan pedang dan teriakan monster saat kalah.
+  * Suara gemerincing koin emas saat berbelanja di toko.
+
+================================================================================
+17. RINGKASAN STRUKTUR FILE REPOSITORI
+================================================================================
+- `index.html`              : Struktur HTML utama, UI HUD, Modal Toko, dan Canvas Render.
+- `css/style.css`           : Styling antarmuka kaca modern (glassmorphism), HUD, dan responsif HP.
+- `js/game.js`              : Engine utama permainan, loop 60 FPS, kontrol input, monster combat AI,
+                              render Hutan Misterius, dan pergantian map.
+- `js/farm.js`              : Logika grid kebun, autotile pagar, 8 jenis tanaman, dan toko dalam rumah.
+- `js/animals.js`           : Logika peternakan Mak Siti (Ayam, Sapi, Domba, Babi) & Pet Follower.
+- `js/bots.js`              : Kecerdasan buatan (AI) bot pembantu kebun Slimey & Boni.
+- `js/audio.js`             : Sintesis suara prosedural Web Audio API (BGM & SFX).
+- `js/network.js`           : Jaringan P2P multiplayer WebRTC PeerJS.
+- `assets/woods/`           : Kumpulan sprite transparan resolusi tinggi untuk Hutan Misterius 
+                              (Pohon Oak, Maple, Altar, Kristal, Monster, Reruntuhan Batu).
+- `CATATAN_LENGKAP_FITUR_GAME.txt` : File dokumentasi lengkap ini.
+
+================================================================================
+                  SELAMAT BERMAIN DI KEBUN CINTA KITA!
+================================================================================
