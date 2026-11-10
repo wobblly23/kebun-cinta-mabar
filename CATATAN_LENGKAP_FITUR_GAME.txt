@@ -323,3 +323,4 @@ Game ini mengadopsi Web Audio API canggih tanpa dependensi file audio berat:
 ================================================================================
                   SELAMAT BERMAIN DI KEBUN CINTA KITA!
 ================================================================================
+

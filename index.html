@@ -323,7 +323,7 @@
         <button class="modal-close" onclick="document.getElementById('modalBots').classList.add('hidden')">&times;</button>
       </div>
       <div class="modal-body">
-        <p class="modal-desc">Kumpulkan koin cinta untuk menyewa pembantu kebun otomatis yang rajin bergerak!</p>
+        <p class="modal-desc">Kumpulkan koin cinta untuk menyewa pembantu kebun otomatis yang rajin bekerja! (Koinmu saat ini: <strong style="color:#e67e22;" id="botModalCoins">0</strong> 🪙)</p>
 
         <div class="bot-card">
           <div class="bot-avatar-emoji">🟢</div>
@@ -331,7 +331,7 @@
             <strong>Slimey Si Slime Air 💦</strong>
             <p>Berjalan menyiram semua tanah kering otomatis agar tanaman tumbuh 2.5x lebih cepat.</p>
             <div id="botStatus_slime">
-              <button class="btn-buy" onclick="hireBotAction('slime', 100)">Sewa Slimey (100 🪙)</button>
+              <button class="btn-buy" onclick="hireBotAction('slime', 50)">Sewa Slimey (50 🪙)</button>
             </div>
           </div>
         </div>
@@ -342,7 +342,7 @@
             <strong>Boni Si Panen Rajin 🧺</strong>
             <p>Berjalan memetik sayur matang otomatis dan menyimpannya langsung ke dalam peti bersama.</p>
             <div id="botStatus_boni">
-              <button class="btn-buy" onclick="hireBotAction('boni', 180)">Sewa Boni (180 🪙)</button>
+              <button class="btn-buy" onclick="hireBotAction('boni', 80)">Sewa Boni (80 🪙)</button>
             </div>
           </div>
         </div>
@@ -394,12 +394,12 @@
   </div>
 
   <!-- Scripts with Cache Busting -->
-  <script src="js/audio.js?v=20261110_3"></script>
-  <script src="js/farm.js?v=20261110_3"></script>
-  <script src="js/bots.js?v=20261110_3"></script>
-  <script src="js/animals.js?v=20261110_3"></script>
-  <script src="js/network.js?v=20261110_3"></script>
-  <script src="js/game.js?v=20261110_3"></script>
+  <script src="js/audio.js?v=20261110_4"></script>
+  <script src="js/farm.js?v=20261110_4"></script>
+  <script src="js/bots.js?v=20261110_4"></script>
+  <script src="js/animals.js?v=20261110_4"></script>
+  <script src="js/network.js?v=20261110_4"></script>
+  <script src="js/game.js?v=20261110_4"></script>
 
   <script>
     let selectedGender = 'boy';
@@ -500,25 +500,15 @@
     }
 
     function hireBotAction(botId, price) {
-      if (game.farm.hireBot(botId, price)) {
-        game.showNotification(`Berhasil menyewa ${botId.toUpperCase()}! Mulai bekerja aktif di kebun~ 🤖✨`);
-        updateBotUI();
-        game.updateHUD();
-      } else {
-        alert('Koin cinta kamu belum cukup!');
+      if (window.game) {
+        window.game.hireBot(botId, price);
       }
     }
 
     function updateBotUI() {
-      if (!game) return;
-      ['slime', 'boni'].forEach(id => {
-        const el = document.getElementById(`botStatus_${id}`);
-        if (el) {
-          if (game.farm.unlockedBots[id]) {
-            el.innerHTML = '<span style="color:#2ed573; font-weight:700;">✅ Sedang Aktif Bekerja</span>';
-          }
-        }
-      });
+      if (window.game) {
+        window.game.updateBotModalUI();
+      }
     }
 
     function handleImportFile(event) {

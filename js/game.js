@@ -3276,22 +3276,37 @@ class Game {
         bot.say('Halo Boss! Saya siap membantu di kebun! 🤖✨', 4);
       }
 
-      this.showNotification(`Berhasil menyewa ${botId === 'slime' ? 'Slimey Si Air 💦' : 'Boni Si Panen 🧺'}! Langsung aktif bekerja! 🎉`);
+      const botName = botId === 'slime' ? 'Slimey Si Air 💦' : (botId === 'boni' ? 'Boni Si Panen 🧺' : 'Bot Pekerja 🤖');
+      this.showNotification(`Berhasil menyewa ${botName}! Langsung aktif bekerja di kebun! 🎉`);
+      if (window.soundSystem) window.soundSystem.playPurchase();
       this.updateHUD();
       this.updateBotModalUI();
     } else {
-      this.showNotification(`Koin tidak mencukupi! Butuh ${price} koin cinta. 🪙`);
+      this.showNotification(`Koin tidak mencukupi! Koinmu: ${this.farm.coins} 🪙 (Butuh: ${price} 🪙).`);
+      alert(`Koin tidak mencukupi!\nKoin kamu saat ini: ${this.farm.coins} 🪙\nBiaya sewa: ${price} 🪙\n\nTips: Panen tanaman atau jual hasil kebun ke Pak Budi di desa untuk mengumpulkan koin! 🌾🪙`);
     }
   }
 
   updateBotModalUI() {
+    const coinEl = document.getElementById('botModalCoins');
+    if (coinEl && this.farm) {
+      coinEl.textContent = this.farm.coins || 0;
+    }
     const slimeBtn = document.querySelector('#botStatus_slime');
-    if (slimeBtn && this.farm.unlockedBots?.slime) {
-      slimeBtn.innerHTML = '<span style="color:#2ed573; font-weight:700;">✓ Aktif Bekerja Menyiram Ladang 💦</span>';
+    if (slimeBtn) {
+      if (this.farm.unlockedBots?.slime) {
+        slimeBtn.innerHTML = '<span style="color:#2ed573; font-weight:700;">✅ Sedang Aktif Bekerja Menyiram Ladang 💦</span>';
+      } else {
+        slimeBtn.innerHTML = '<button class="btn-buy" onclick="hireBotAction(\'slime\', 50)">Sewa Slimey (50 🪙)</button>';
+      }
     }
     const boniBtn = document.querySelector('#botStatus_boni');
-    if (boniBtn && this.farm.unlockedBots?.boni) {
-      boniBtn.innerHTML = '<span style="color:#2ed573; font-weight:700;">✓ Aktif Bekerja Memetik Panen 🧺</span>';
+    if (boniBtn) {
+      if (this.farm.unlockedBots?.boni) {
+        boniBtn.innerHTML = '<span style="color:#2ed573; font-weight:700;">✅ Sedang Aktif Bekerja Memetik Panen 🧺</span>';
+      } else {
+        boniBtn.innerHTML = '<button class="btn-buy" onclick="hireBotAction(\'boni\', 80)">Sewa Boni (80 🪙)</button>';
+      }
     }
   }
 }

@@ -1050,6 +1050,19 @@ class FarmManager {
     return true;
   }
 
+  hireBot(botId, price) {
+    if (this.unlockedBots && this.unlockedBots[botId]) return true;
+    if (this.coins >= price) {
+      this.coins -= price;
+      if (!this.unlockedBots) this.unlockedBots = {};
+      this.unlockedBots[botId] = true;
+      this.addLovePoints(25);
+      this.autoSave();
+      return true;
+    }
+    return false;
+  }
+
   addLovePoints(points) {
     this.lovePoints += points;
     const newLevel = Math.min(LOVE_LEVEL_TITLES.length, Math.floor(this.lovePoints / 80) + 1);
