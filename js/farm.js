@@ -533,7 +533,6 @@ class FarmManager {
   }
 
   // --- MYSTIC WOODS (COMBAT & RESOURCE MAP) ---
-  // --- MYSTIC WOODS (COMBAT & RESOURCE MAP) ---
   initMysticWoods() {
     this.woodsCols = 40;
     this.woodsRows = 30;
@@ -544,7 +543,7 @@ class FarmManager {
       for (let x = 0; x < this.woodsCols; x++) {
         const isBorder = (x <= 1 || x >= this.woodsCols - 2 || y <= 1 || y >= this.woodsRows - 2);
         row.push({
-          type: isBorder ? 'woods_tree' : 'woods_grass',
+          type: isBorder ? 'woods_border' : 'woods_grass',
           collidable: isBorder
         });
       }
@@ -554,30 +553,85 @@ class FarmManager {
     // Portal back to village at (2, 15)
     this.mysticWoodsGrid[15][2].type = 'portal_village';
     this.mysticWoodsGrid[15][2].collidable = false;
+    this.mysticWoodsGrid[15][1].collidable = false;
 
-    // Natural Interior Tree Groves (creates winding paths and natural monster territories)
-    const treeGroves = [
+    // Organic Winding Dirt Trails through the Mystic Woods
+    // Main trail from portal (2, 15) to ancient sanctuary (20, 15)
+    for (let x = 2; x <= 22; x++) {
+      this.mysticWoodsGrid[15][x].type = 'woods_path';
+      if (x % 2 === 0) this.mysticWoodsGrid[14][x].type = 'woods_path';
+    }
+    // North branch to Ancient Ruin Grounds (18, 5..15)
+    for (let y = 6; y <= 15; y++) {
+      this.mysticWoodsGrid[y][18].type = 'woods_path';
+      if (y % 2 === 0) this.mysticWoodsGrid[y][19].type = 'woods_path';
+    }
+    for (let x = 14; x <= 24; x++) {
+      this.mysticWoodsGrid[6][x].type = 'woods_path';
+    }
+    // South branch to Slime Hollow (20, 15..24)
+    for (let y = 15; y <= 24; y++) {
+      this.mysticWoodsGrid[y][20].type = 'woods_path';
+      if (y % 2 === 1) this.mysticWoodsGrid[y][21].type = 'woods_path';
+    }
+    for (let x = 12; x <= 28; x++) {
+      this.mysticWoodsGrid[24][x].type = 'woods_path';
+    }
+    // East branch to Deep Woods (22..34, 15)
+    for (let x = 22; x <= 34; x++) {
+      this.mysticWoodsGrid[15][x].type = 'woods_path';
+      if (x % 2 === 1) this.mysticWoodsGrid[16][x].type = 'woods_path';
+    }
+
+    // Dedicated Tree Placement List (Lush, non-overlapping natural forest canopy)
+    this.woodsTrees = [];
+
+    // Outer Perimeter Canopy
+    // Top border (y=1)
+    for (let x = 1; x < this.woodsCols - 1; x += 3) {
+      this.woodsTrees.push({ x: x, y: 1, type: (x % 2 === 0 ? 'big' : 'small') });
+      this.mysticWoodsGrid[1][x].collidable = true;
+    }
+    // Bottom border (y=28)
+    for (let x = 1; x < this.woodsCols - 1; x += 3) {
+      this.woodsTrees.push({ x: x, y: 28, type: (x % 2 === 0 ? 'big' : 'small') });
+      this.mysticWoodsGrid[28][x].collidable = true;
+    }
+    // Left border (x=1, leaving opening for portal at y=13..17)
+    for (let y = 2; y < this.woodsRows - 2; y += 3) {
+      if (y >= 13 && y <= 17) continue; // Portal opening
+      this.woodsTrees.push({ x: 1, y: y, type: 'big' });
+      this.mysticWoodsGrid[y][1].collidable = true;
+    }
+    // Right border (x=38)
+    for (let y = 2; y < this.woodsRows - 2; y += 3) {
+      this.woodsTrees.push({ x: 38, y: y, type: (y % 2 === 0 ? 'big' : 'small') });
+      this.mysticWoodsGrid[y][38].collidable = true;
+    }
+
+    // Interior Natural Forest Groves (Framing the clearings)
+    const interiorTrees = [
       // NW Grove
-      { x: 5, y: 4 }, { x: 6, y: 4 }, { x: 7, y: 5 }, { x: 6, y: 6 },
-      // North Center Grove
-      { x: 15, y: 3 }, { x: 16, y: 3 }, { x: 17, y: 4 }, { x: 16, y: 5 },
+      { x: 5, y: 5, type: 'big' }, { x: 8, y: 4, type: 'small' }, { x: 6, y: 8, type: 'small' },
+      // North Ruins Framing
+      { x: 13, y: 4, type: 'big' }, { x: 25, y: 4, type: 'big' }, { x: 26, y: 8, type: 'small' },
       // NE Grove
-      { x: 29, y: 4 }, { x: 30, y: 4 }, { x: 31, y: 5 }, { x: 32, y: 5 },
-      // West Mid Grove
-      { x: 8, y: 11 }, { x: 9, y: 12 }, { x: 8, y: 13 },
-      // East Mid Grove
-      { x: 28, y: 12 }, { x: 29, y: 13 }, { x: 30, y: 13 },
+      { x: 31, y: 5, type: 'big' }, { x: 35, y: 6, type: 'small' }, { x: 33, y: 9, type: 'big' },
+      // Mid-West Grove
+      { x: 8, y: 11, type: 'big' }, { x: 7, y: 18, type: 'small' },
+      // Mid-East Grove
+      { x: 28, y: 11, type: 'big' }, { x: 30, y: 18, type: 'small' },
       // SW Grove
-      { x: 6, y: 22 }, { x: 7, y: 22 }, { x: 8, y: 23 }, { x: 7, y: 24 },
-      // South Center Grove
-      { x: 17, y: 23 }, { x: 18, y: 24 }, { x: 19, y: 23 },
+      { x: 5, y: 22, type: 'big' }, { x: 8, y: 25, type: 'small' }, { x: 6, y: 26, type: 'big' },
+      // South Slime Hollow Framing
+      { x: 15, y: 22, type: 'small' }, { x: 25, y: 22, type: 'big' }, { x: 17, y: 26, type: 'big' },
       // SE Grove
-      { x: 30, y: 22 }, { x: 31, y: 23 }, { x: 32, y: 22 }
+      { x: 32, y: 22, type: 'big' }, { x: 35, y: 24, type: 'small' }
     ];
 
-    treeGroves.forEach(t => {
+    interiorTrees.forEach(t => {
+      this.woodsTrees.push(t);
       if (this.mysticWoodsGrid[t.y] && this.mysticWoodsGrid[t.y][t.x]) {
-        this.mysticWoodsGrid[t.y][t.x].type = 'woods_tree';
         this.mysticWoodsGrid[t.y][t.x].collidable = true;
       }
     });
@@ -587,8 +641,8 @@ class FarmManager {
       // Ancient Altar at Center (20, 15)
       { id: 'altar_1', type: 'ancient_altar', x: 20, y: 15, hp: 9999, collidable: true },
       // Glowing Crystal Ore Veins (Drop Amethyst & Gold!)
-      { id: 'wo_1', type: 'woods_ore', x: 12, y: 6, hp: 3, maxHp: 3 },
-      { id: 'wo_2', type: 'woods_ore', x: 24, y: 5, hp: 3, maxHp: 3 },
+      { id: 'wo_1', type: 'woods_ore', x: 12, y: 7, hp: 3, maxHp: 3 },
+      { id: 'wo_2', type: 'woods_ore', x: 24, y: 6, hp: 3, maxHp: 3 },
       { id: 'wo_3', type: 'woods_ore', x: 14, y: 21, hp: 3, maxHp: 3 },
       { id: 'wo_4', type: 'woods_ore', x: 33, y: 17, hp: 3, maxHp: 3 },
       // Mystic Dark Rocks
@@ -606,7 +660,7 @@ class FarmManager {
       { id: 'ws_3', type: 'woods_stump', x: 12, y: 25, hp: 2, maxHp: 2 },
       // Glowing Blue & Red Mushrooms (Decor & Foraging)
       { id: 'wm_b1', type: 'shroom_blue', x: 7, y: 9, hp: 1 },
-      { id: 'wm_b2', type: 'shroom_blue', x: 21, y: 6, hp: 1 },
+      { id: 'wm_b2', type: 'shroom_blue', x: 21, y: 7, hp: 1 },
       { id: 'wm_b3', type: 'shroom_blue', x: 16, y: 18, hp: 1 },
       { id: 'wm_b4', type: 'shroom_blue', x: 34, y: 11, hp: 1 },
       { id: 'wm_r1', type: 'shroom_red', x: 11, y: 14, hp: 1 },
@@ -617,13 +671,13 @@ class FarmManager {
 
     // Aggressive Monsters (4 Slimes + 3 Skeletons)
     this.monsters = [
-      { id: 's1', type: 'slime', x: 12 * 16, y: 8 * 16, hp: 40, maxHp: 40, atk: 10, speed: 28, dir: 'down', anim: 0, reward: 20 },
-      { id: 's2', type: 'slime', x: 23 * 16, y: 8 * 16, hp: 40, maxHp: 40, atk: 10, speed: 28, dir: 'down', anim: 0, reward: 20 },
-      { id: 's3', type: 'slime', x: 14 * 16, y: 18 * 16, hp: 40, maxHp: 40, atk: 10, speed: 28, dir: 'down', anim: 0, reward: 20 },
-      { id: 's4', type: 'slime', x: 28 * 16, y: 18 * 16, hp: 40, maxHp: 40, atk: 10, speed: 28, dir: 'down', anim: 0, reward: 20 },
-      { id: 'sk1', type: 'skeleton', x: 18 * 16, y: 12 * 16, hp: 65, maxHp: 65, atk: 16, speed: 34, dir: 'down', anim: 0, reward: 35 },
-      { id: 'sk2', type: 'skeleton', x: 22 * 16, y: 18 * 16, hp: 65, maxHp: 65, atk: 16, speed: 34, dir: 'down', anim: 0, reward: 35 },
-      { id: 'sk3', type: 'skeleton', x: 32 * 16, y: 14 * 16, hp: 65, maxHp: 65, atk: 16, speed: 34, dir: 'down', anim: 0, reward: 35 }
+      { id: 's1', type: 'slime', x: 12 * 16, y: 8 * 16, hp: 40, maxHp: 40, atk: 10, speed: 28, dir: 'down', anim: 0, reward: 20, level: 1 },
+      { id: 's2', type: 'slime', x: 24 * 16, y: 8 * 16, hp: 40, maxHp: 40, atk: 10, speed: 28, dir: 'down', anim: 0, reward: 20, level: 1 },
+      { id: 's3', type: 'slime', x: 14 * 16, y: 21 * 16, hp: 40, maxHp: 40, atk: 10, speed: 28, dir: 'down', anim: 0, reward: 20, level: 1 },
+      { id: 's4', type: 'slime', x: 28 * 16, y: 21 * 16, hp: 40, maxHp: 40, atk: 10, speed: 28, dir: 'down', anim: 0, reward: 20, level: 1 },
+      { id: 'sk1', type: 'skeleton', x: 18 * 16, y: 7 * 16, hp: 65, maxHp: 65, atk: 16, speed: 34, dir: 'down', anim: 0, reward: 35, level: 2 },
+      { id: 'sk2', type: 'skeleton', x: 22 * 16, y: 17 * 16, hp: 65, maxHp: 65, atk: 16, speed: 34, dir: 'down', anim: 0, reward: 35, level: 2 },
+      { id: 'sk3', type: 'skeleton', x: 32 * 16, y: 14 * 16, hp: 65, maxHp: 65, atk: 16, speed: 34, dir: 'down', anim: 0, reward: 35, level: 3 }
     ];
   }
 

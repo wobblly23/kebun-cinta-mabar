@@ -1893,6 +1893,46 @@ class Game {
       }
     }
 
+    // Active Hostile Monster AI (Wander & Aggressive Combat Chase in Mystic Woods)
+    if (this.farm.currentLocation === 'woods') {
+      this.farm.monsters.forEach(m => {
+        if (m.hp <= 0) return;
+        m.anim = (m.anim + delta * 4) % 4;
+
+        const mdx = (this.player.x + 16) - (m.x + 16);
+        const mdy = (this.player.y + 16) - (m.y + 16);
+        const dist = Math.hypot(mdx, mdy);
+
+        // Aggro distance: 110px (~7 tiles)
+        if (dist < 110) {
+          m.dir = Math.abs(mdx) > Math.abs(mdy) ? (mdx > 0 ? 'right' : 'left') : (mdy > 0 ? 'down' : 'up');
+          const moveSpeed = (m.speed || 28) * delta;
+          m.x += (mdx / dist) * moveSpeed;
+          m.y += (mdy / dist) * moveSpeed;
+
+          // Attack player if in melee reach (< 22px)
+          if (dist < 22) {
+            m.atkCooldown = (m.atkCooldown || 0) - delta;
+            if (m.atkCooldown <= 0) {
+              m.atkCooldown = 1.2; // 1.2s cooldown between attacks
+              const dmg = m.atk || 10;
+              this.farm.playerHp = Math.max(0, this.farm.playerHp - dmg);
+              this.screenFlashRed = 0.35;
+              this.showDamage(this.player.x + 8, this.player.y - 8, `-${dmg} HP 💔`, '#ff4757');
+              if (window.soundSystem) window.soundSystem.playTill();
+
+              if (this.farm.playerHp <= 0) {
+                this.playerFaintAndRespawn();
+              }
+              this.updateHUD();
+            }
+          }
+        } else {
+          if (m.atkCooldown > 0) m.atkCooldown -= delta;
+        }
+      });
+    }
+
     if (this.player.actionTimer > 0) {
       this.player.actionTimer -= delta;
       const progress = 1 - Math.max(0, this.player.actionTimer / 0.35);
@@ -2458,27 +2498,66 @@ class Game {
     }
   }
 
-  // --- 4. MYSTIC WOODS (AGGRESSIVE MONSTERS) ---
+  // --- 4. MYSTIC WOODS (RICH ATMOSPHERIC ENCHANTED FOREST) ---
   renderMysticWoods() {
     const imgMystic = this.assets.mystic_grass || this.assets.grass;
+    const imgPath = this.assets.path;
 
-    // 1. Base Terrain Grass & Portal
+    // 1. Base Terrain: Forest Moss Grass & Winding Earthy Dirt Trail
     for (let y = 0; y < this.farm.woodsRows; y++) {
       for (let x = 0; x < this.farm.woodsCols; x++) {
         const px = x * 16;
         const py = y * 16;
         const cell = this.farm.mysticWoodsGrid[y][x];
 
-        if (imgMystic) this.ctx.drawImage(imgMystic, px, py, 16, 16);
+        // Deep enchanted moss grass tile
+        if (imgMystic) {
+          this.ctx.drawImage(imgMystic, px, py, 16, 16);
+        } else {
+          this.ctx.fillStyle = '#225533';
+          this.ctx.fillRect(px, py, 16, 16);
+        }
 
+        // Earthy forest trail
+        if (cell.type === 'woods_path') {
+          if (imgPath) {
+            this.ctx.drawImage(imgPath, px, py, 16, 16);
+          } else {
+            this.ctx.fillStyle = '#6b4c35';
+            this.ctx.fillRect(px, py, 16, 16);
+          }
+          this.ctx.fillStyle = 'rgba(34, 85, 51, 0.22)';
+          this.ctx.fillRect(px, py, 16, 16);
+        }
+
+        // Scattered lush grass tufts & forest clovers
+        if (cell.type === 'woods_grass' && (x * 7 + y * 13) % 9 === 0) {
+          this.ctx.fillStyle = '#3ca05a';
+          this.ctx.fillRect(px + 4, py + 8, 2, 4);
+          this.ctx.fillRect(px + 8, py + 6, 2, 6);
+          this.ctx.fillRect(px + 11, py + 9, 2, 3);
+        }
+
+        // Ancient Runic Portal to Village at (2, 15)
         if (cell.type === 'portal_village') {
-          const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 300);
-          this.ctx.fillStyle = `rgba(46, 204, 113, ${pulse * 0.35})`;
-          this.ctx.fillRect(px - 4, py - 4, 24, 24);
-          this.ctx.strokeStyle = '#2ed573';
-          this.ctx.lineWidth = 2;
-          this.ctx.strokeRect(px - 4, py - 4, 24, 24);
-          this.renderSignboard(px + 8, py + 26, '🏡 Kembali ke Desa');
+          const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 250);
+          // Stone runic portal circle
+          this.ctx.fillStyle = 'rgba(26, 188, 156, 0.25)';
+          this.ctx.beginPath();
+          this.ctx.arc(px + 8, py + 8, 20 + pulse * 4, 0, Math.PI * 2);
+          this.ctx.fill();
+
+          // Swirling emerald vortex core
+          this.ctx.fillStyle = `rgba(46, 204, 113, ${0.4 + pulse * 0.3})`;
+          this.ctx.beginPath();
+          this.ctx.arc(px + 8, py + 8, 12, 0, Math.PI * 2);
+          this.ctx.fill();
+
+          this.ctx.strokeStyle = '#2ecc71';
+          this.ctx.lineWidth = 2.5;
+          this.ctx.stroke();
+
+          this.renderSignboard(px + 8, py + 26, '🏡 Portal ke Desa');
         }
       }
     }
@@ -2486,24 +2565,24 @@ class Game {
     // 2. Y-Sorted Entities: Trees, Ancient Altar, Rocks, Crystal Ores, Stumps, Logs, Mushrooms, Monsters, Pet & Players
     const entities = [];
 
-    // Boundary & Interior Forest Trees
-    for (let y = 0; y < this.farm.woodsRows; y++) {
-      for (let x = 0; x < this.farm.woodsCols; x++) {
-        const cell = this.farm.mysticWoodsGrid[y][x];
-        if (cell.type === 'woods_tree') {
-          const px = x * 16;
-          const py = y * 16;
-          entities.push({
-            y: py + 16,
-            render: () => {
-              const treeImg = this.assets.woods_tree_big || this.assets.tree;
-              if (treeImg) {
-                this.ctx.drawImage(treeImg, px - 16, py - 44, 48, 60);
-              }
+    // Dense Forest Trees (Oak & Maple with Clean 100% Transparency - No Watermarks!)
+    if (this.farm.woodsTrees) {
+      this.farm.woodsTrees.forEach(t => {
+        const px = t.x * 16;
+        const py = t.y * 16;
+        entities.push({
+          y: py + 16,
+          render: () => {
+            if (t.type === 'small') {
+              const img = this.assets.woods_tree_small || this.assets.tree;
+              if (img) this.ctx.drawImage(img, px - 8, py - 36, 32, 48);
+            } else {
+              const img = this.assets.woods_tree_big || this.assets.tree;
+              if (img) this.ctx.drawImage(img, px - 24, py - 64, 64, 80);
             }
-          });
-        }
-      }
+          }
+        });
+      });
     }
 
     // Rich Interactive Woods Nodes
@@ -2514,30 +2593,44 @@ class Game {
         const ny = node.y * 16;
 
         entities.push({
-          y: ny + 12,
+          y: ny + 14,
           render: () => {
             if (node.type === 'ancient_altar') {
-              const altarImg = this.assets.woods_ancient_altar;
-              if (altarImg) this.ctx.drawImage(altarImg, nx - 8, ny - 16, 32, 32);
-              // Runic blue magical aura
+              // Glowing runic circle on stone floor
               const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 250);
-              this.ctx.fillStyle = `rgba(0, 210, 211, ${pulse * 0.25})`;
+              this.ctx.fillStyle = `rgba(0, 210, 211, ${0.15 + pulse * 0.15})`;
               this.ctx.beginPath();
-              this.ctx.arc(nx + 8, ny, 26, 0, Math.PI * 2);
+              this.ctx.arc(nx + 16, ny + 16, 32, 0, Math.PI * 2);
               this.ctx.fill();
+
+              this.ctx.strokeStyle = `rgba(72, 219, 251, ${0.4 + pulse * 0.4})`;
+              this.ctx.lineWidth = 2;
+              this.ctx.stroke();
+
+              // Ancient Altar Sprite
+              const altarImg = this.assets.woods_ancient_altar;
+              if (altarImg) this.ctx.drawImage(altarImg, nx, ny, 32, 32);
+
+              // Floating magical blue flame beacon
+              this.ctx.fillStyle = '#00d2d3';
+              this.ctx.beginPath();
+              this.ctx.arc(nx + 16, ny + 4, 3 + pulse * 2, 0, Math.PI * 2);
+              this.ctx.fill();
+
+              this.renderSignboard(nx + 16, ny + 36, '✨ Altar Purba');
             } else if (node.type === 'woods_ore') {
               const oreImg = this.assets.woods_crystal_ore;
               if (oreImg) this.ctx.drawImage(oreImg, nx, ny, 16, 16);
-              // Purple crystal sparkle
+              // Purple sparkle glint
               const shimmer = 0.5 + 0.5 * Math.sin((Date.now() + nx * 10) / 200);
-              this.ctx.fillStyle = `rgba(155, 89, 182, ${shimmer * 0.4})`;
-              this.ctx.fillRect(nx + 2, ny + 2, 12, 12);
+              this.ctx.fillStyle = `rgba(165, 94, 234, ${shimmer * 0.4})`;
+              this.ctx.fillRect(nx + 4, ny + 4, 8, 8);
             } else if (node.type === 'woods_rock') {
               const rImg = this.assets.woods_rock || this.assets.rock_node;
-              if (rImg) this.ctx.drawImage(rImg, nx, ny, 24, 24);
+              if (rImg) this.ctx.drawImage(rImg, nx - 4, ny - 4, 24, 24);
             } else if (node.type === 'woods_log') {
               const logImg = this.assets.woods_log || this.assets.log_wood;
-              if (logImg) this.ctx.drawImage(logImg, nx, ny, 32, 16);
+              if (logImg) this.ctx.drawImage(logImg, nx - 4, ny, 32, 16);
             } else if (node.type === 'woods_stump') {
               const sImg = this.assets.woods_stump || this.assets.stump;
               if (sImg) this.ctx.drawImage(sImg, nx, ny, 16, 16);
@@ -2547,7 +2640,7 @@ class Game {
               if (mImg) this.ctx.drawImage(mImg, f * 16, 0, 16, 16, nx, ny, 16, 16);
               this.ctx.fillStyle = 'rgba(72, 219, 251, 0.25)';
               this.ctx.beginPath();
-              this.ctx.arc(nx + 8, ny + 8, 8, 0, Math.PI * 2);
+              this.ctx.arc(nx + 8, ny + 8, 7, 0, Math.PI * 2);
               this.ctx.fill();
             } else if (node.type === 'shroom_red') {
               const mImg = this.assets.woods_shroom_red;
@@ -2555,15 +2648,23 @@ class Game {
               if (mImg) this.ctx.drawImage(mImg, f * 16, 0, 16, 16, nx, ny, 16, 16);
               this.ctx.fillStyle = 'rgba(255, 107, 129, 0.25)';
               this.ctx.beginPath();
-              this.ctx.arc(nx + 8, ny + 8, 8, 0, Math.PI * 2);
+              this.ctx.arc(nx + 8, ny + 8, 7, 0, Math.PI * 2);
               this.ctx.fill();
+            }
+
+            // Health bar if node is damaged
+            if (node.hp < node.maxHp) {
+              this.ctx.fillStyle = 'rgba(0,0,0,0.6)';
+              this.ctx.fillRect(nx, ny - 4, 16, 3);
+              this.ctx.fillStyle = '#2ed573';
+              this.ctx.fillRect(nx, ny - 4, (node.hp / node.maxHp) * 16, 3);
             }
           }
         });
       });
     }
 
-    // Hostile Monsters (Slimes & Skeletons)
+    // Hostile Monsters with Clean Health Bars & Smooth Animations
     this.farm.monsters.forEach(m => {
       if (m.hp <= 0) return;
       entities.push({
@@ -2583,11 +2684,31 @@ class Game {
             }
             this.ctx.restore();
 
-            // Monster Health Bar
-            this.ctx.fillStyle = 'rgba(0,0,0,0.65)';
-            this.ctx.fillRect(m.x + 4, m.y - 8, 24, 4);
-            this.ctx.fillStyle = '#e74c3c';
-            this.ctx.fillRect(m.x + 4, m.y - 8, Math.max(0, (m.hp / m.maxHp) * 24), 4);
+            // Clean, Compact Monster Health Bar anchored right above monster head
+            const barW = 20;
+            const barH = 3;
+            const barX = m.x + 6;
+            const barY = m.y - 6;
+
+            this.ctx.fillStyle = 'rgba(15, 20, 25, 0.85)';
+            this.ctx.beginPath();
+            this.ctx.roundRect(barX - 1, barY - 1, barW + 2, barH + 2, 2);
+            this.ctx.fill();
+
+            const hpRatio = Math.max(0, m.hp / m.maxHp);
+            const fillCol = hpRatio > 0.5 ? '#2ed573' : (hpRatio > 0.25 ? '#ffa502' : '#ff4757');
+            this.ctx.fillStyle = fillCol;
+            this.ctx.fillRect(barX, barY, Math.round(barW * hpRatio), barH);
+
+            // Level & Name Tag
+            this.ctx.font = 'bold 8px sans-serif';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.shadowColor = 'rgba(0,0,0,0.8)';
+            this.ctx.shadowBlur = 2;
+            const monsterLabel = m.type === 'slime' ? `Slime Lv.${m.level || 1}` : `Tengkorak Lv.${m.level || 2}`;
+            this.ctx.fillText(monsterLabel, m.x + 16, m.y - 8);
+            this.ctx.shadowBlur = 0;
           }
         }
       });
@@ -2620,7 +2741,7 @@ class Game {
             // Combat Lunge indicator
             if (this.pet.attackTimer > 0) {
               this.ctx.fillStyle = '#f1c40f';
-              this.ctx.font = '10px sans-serif';
+              this.ctx.font = 'bold 9px sans-serif';
               this.ctx.fillText('🐾 Cakar!', this.pet.x + 2, this.pet.y - 6);
             }
           }
@@ -2644,15 +2765,20 @@ class Game {
     // Render sorted entities from top to bottom
     entities.sort((a, b) => a.y - b.y).forEach(e => e.render());
 
-    // 3. Ambient Forest Floating Spores & Fireflies
+    // 3. Mystic Atmospheric Lighting & Enchanted Spores
     const time = Date.now() / 1000;
-    for (let i = 0; i < 14; i++) {
-      const fx = ((i * 47 + time * 12) % (this.farm.woodsCols * 16));
-      const fy = ((i * 31 + Math.sin(time + i) * 16 + 20) % (this.farm.woodsRows * 16));
-      const alpha = 0.3 + 0.4 * Math.sin(time * 2 + i);
+    // Ambient forest tint (cool emerald mist)
+    this.ctx.fillStyle = 'rgba(12, 38, 28, 0.12)';
+    this.ctx.fillRect(0, 0, this.farm.woodsCols * 16, this.farm.woodsRows * 16);
+
+    // Floating Enchanted Forest Wisps & Spores
+    for (let i = 0; i < 18; i++) {
+      const fx = ((i * 41 + time * 14) % (this.farm.woodsCols * 16));
+      const fy = ((i * 29 + Math.sin(time * 1.5 + i) * 18 + 20) % (this.farm.woodsRows * 16));
+      const alpha = 0.3 + 0.45 * Math.sin(time * 2 + i);
       this.ctx.fillStyle = i % 2 === 0 ? `rgba(46, 213, 115, ${alpha})` : `rgba(165, 94, 234, ${alpha})`;
       this.ctx.beginPath();
-      this.ctx.arc(fx, fy, 2, 0, Math.PI * 2);
+      this.ctx.arc(fx, fy, 2.5, 0, Math.PI * 2);
       this.ctx.fill();
     }
   }
