@@ -764,7 +764,7 @@ class FarmManager {
     return { name: item.name, healed };
   }
 
-  // --- CONSUME FOOD / CROPS TO HEAL HP ---
+  // --- CONSUME FOOD / CROPS TO HEAL HP (PERCENTAGE-BASED) ---
   eatCrop(cropId) {
     const def = CROP_DEFINITIONS[cropId] || ITEM_CATALOG[cropId];
     if (!def) return null;
@@ -778,10 +778,27 @@ class FarmManager {
     } else {
       this.chest.produce[cropId]--;
     }
-    const healAmount = def.healHp || def.heal || 25;
+
+    // Specific percentage recovery per crop / food item:
+    const percentMap = {
+      carrot: 15,       // Wortel segar +15% HP
+      cabbage: 20,      // Kubis renyah +20% HP
+      strawberry: 20,   // Stroberi manis +20% HP
+      potato: 25,       // Kentang rebus +25% HP
+      corn: 25,         // Jagung manis +25% HP
+      beetroot: 30,     // Bit merah +30% HP
+      cauliflower: 30,  // Kembang kol +30% HP
+      pumpkin: 35,      // Labu madu +35% HP
+      radish: 20,       // Lobak segar +20% HP
+      fish: 25,         // Ikan bakar segar +25% HP
+      egg: 18,          // Telur ayam bergizi +18% HP
+      milk: 30          // Susu sapi segar +30% HP
+    };
+    const percent = percentMap[cropId] || def.healPercent || 20;
+    const healAmount = Math.max(1, Math.round(this.playerMaxHp * (percent / 100)));
     this.playerHp = Math.min(this.playerMaxHp, this.playerHp + healAmount);
     this.autoSave();
-    return { def, heal: healAmount };
+    return { def, heal: healAmount, percent };
   }
 
   // --- MC HOUSE CUSTOM FURNITURE ARRANGEMENT ---

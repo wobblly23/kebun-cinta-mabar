@@ -170,7 +170,14 @@ class Game {
       anvil: 'assets/furniture/anvil.png',
       barrel_swords: 'assets/furniture/barrel_swords.png',
       crate_merchant: 'assets/furniture/crate_merchant.png',
-      wall_wood_top: 'assets/tiles/wall_wood_top.png'
+      wall_wood_top: 'assets/tiles/wall_wood_top.png',
+      // Authentic Pixel Tools In-Hand
+      tool_hoe: 'assets/tools/tool_hoe.png',
+      tool_water: 'assets/tools/tool_water.png',
+      tool_axe: 'assets/tools/tool_axe.png',
+      tool_pickaxe: 'assets/tools/tool_pickaxe.png',
+      tool_sword: 'assets/tools/tool_sword.png',
+      tool_rod: 'assets/tools/tool_rod.png'
     };
 
     // Load Sunnyside Individual Stage Sprites for 8 Crops (00 to 05)
@@ -616,12 +623,97 @@ class Game {
         this.activePrompt = { text: 'Keluar ke Desa [E] 🚪', action: () => this.teleport('farm', 24, 9) };
         return;
       }
-      const nearBed = this.farm.placedFurnitureMC.some(f => f.id === 'bed_double' && Math.hypot(px - (f.x * 16 + 16), py - (f.y * 16 + 16)) < 36);
-      if (nearBed) {
-        this.activePrompt = { text: 'Tidur Berdua Menyambut Pagi [E] 🛏️❤️', action: () => this.sleepInBed() };
-        return;
+
+      // Check contextual interaction with placed furniture pieces
+      const nearFurn = this.farm.placedFurnitureMC.find(f => {
+        const def = window.FURNITURE_DEFINITIONS[f.id] || { w: 2, h: 2 };
+        const fcx = f.x * 16 + (def.w * 16) / 2;
+        const fcy = f.y * 16 + (def.h * 16) / 2;
+        return Math.hypot(px - fcx, py - fcy) < 28;
+      });
+
+      if (nearFurn) {
+        if (nearFurn.id === 'bed_double') {
+          this.activePrompt = { text: 'Tidur Berdua Menyambut Pagi [E] 🛏️❤️', action: () => this.sleepInBed() };
+          return;
+        }
+        if (nearFurn.id === 'fireplace') {
+          this.activePrompt = {
+            text: `${nearFurn.lit === false ? 'Nyalakan' : 'Padamkan'} Perapian [E] 🔥`,
+            action: () => {
+              nearFurn.lit = nearFurn.lit === false ? true : false;
+              this.showNotification(nearFurn.lit !== false ? '🔥 Perapian menyala hangat merekah!' : '💨 Perapian dipadamkan.');
+              this.farm.autoSave();
+            }
+          };
+          return;
+        }
+        if (nearFurn.id === 'sofa') {
+          this.activePrompt = {
+            text: 'Duduk Santai di Sofa [E] 🛋️',
+            action: () => {
+              this.player.emote = '💖';
+              this.player.emoteTimer = 3.0;
+              this.farm.playerHp = Math.min(this.farm.playerMaxHp, this.farm.playerHp + 15);
+              this.showNotification('Duduk santai di sofa empuk... tenaga & cinta bertambah! (+15 HP) 🛋️✨');
+              this.updateHUD();
+            }
+          };
+          return;
+        }
+        if (nearFurn.id === 'dining_table' || nearFurn.id === 'table_small') {
+          this.activePrompt = {
+            text: 'Santap Makanan di Meja [E] 🍽️',
+            action: () => {
+              const currentItem = this.farm.hotbar[this.farm.activeHotbarIndex];
+              const itemDef = window.ITEM_CATALOG[currentItem];
+              if (itemDef && itemDef.type === 'food') {
+                const res = this.farm.eatCrop(currentItem);
+                if (res && !res.full) {
+                  this.farm.playerHp = Math.min(this.farm.playerMaxHp, this.farm.playerHp + 10);
+                  this.farm.lovePoints += 5;
+                  this.showNotification(`Santap lezat ${res.def.name} di meja makan! Bonus (+${res.percent}% + 10 HP & +5 Cinta) 🍽️💖`);
+                  this.floatingTexts.push({ x: px, y: py - 12, text: `+${res.percent}% HP & +5 Cinta 💖`, color: '#ff4757', life: 1.5 });
+                  this.updateHUD();
+                } else if (res && res.full) {
+                  this.showNotification('Darahmu sudah penuh! 🍽️❤️');
+                }
+              } else {
+                this.showNotification('Pilih makanan dari hotbar (wortel/ikan/telur/susu) untuk disantap di meja makan! 🥕🍲');
+              }
+            }
+          };
+          return;
+        }
+        if (nearFurn.id === 'bookshelf') {
+          this.activePrompt = {
+            text: 'Baca Buku Panduan Desa [E] 📚',
+            action: () => this.openHandbookModal()
+          };
+          return;
+        }
+        if (nearFurn.id === 'cabinet') {
+          this.activePrompt = {
+            text: 'Buka Lemari Penyimpanan [E] 🗄️',
+            action: () => this.openChestModal()
+          };
+          return;
+        }
+        if (nearFurn.id === 'plant') {
+          this.activePrompt = {
+            text: 'Siram Tanaman Hias [E] 🪴',
+            action: () => {
+              this.showNotification('🪴 Daun monstera disiram segar... rumah semakin asri!');
+              this.floatingTexts.push({ x: px, y: py - 10, text: '🪴 +1 Cinta', color: '#2ed573', life: 1.2 });
+              this.farm.lovePoints += 1;
+              this.updateHUD();
+            }
+          };
+          return;
+        }
       }
-      this.activePrompt = { text: 'Atur Perabotan Rumah [E] 🪑', action: () => this.toggleFurnitureEdit() };
+
+      this.activePrompt = { text: 'Atur / Beli Perabotan Rumah [E] 🪑🛒', action: () => this.toggleFurnitureEdit() };
       return;
     }
 
@@ -726,8 +818,19 @@ class Game {
     this.farm.currentLocation = newLoc;
     this.player.x = tx * 16;
     this.player.y = ty * 16;
-    this.camera.x = this.player.x - this.canvas.width / 2;
-    this.camera.y = this.player.y - this.canvas.height / 2;
+
+    const viewW = this.canvas.width / this.camera.scale;
+    const viewH = this.canvas.height / this.camera.scale;
+
+    if (newLoc.startsWith('house_')) {
+      const roomW = newLoc === 'house_mc' ? 16 * 16 : 14 * 16;
+      const roomH = newLoc === 'house_mc' ? 12 * 16 : 10 * 16;
+      this.camera.x = Math.round((roomW - viewW) / 2);
+      this.camera.y = Math.round((roomH - viewH) / 2);
+    } else {
+      this.camera.x = this.player.x + 16 - viewW / 2;
+      this.camera.y = this.player.y + 16 - viewH / 2;
+    }
 
     this.network.send({
       type: 'teleport',
@@ -759,6 +862,7 @@ class Game {
     this.furnitureEditMode = !this.furnitureEditMode;
     const modal = document.getElementById('modalFurniturePlacement');
     if (this.furnitureEditMode) {
+      this.toggleFurnitureTab('owned');
       this.updateFurnitureUI();
       modal?.classList.remove('hidden');
     } else {
@@ -767,37 +871,104 @@ class Game {
     }
   }
 
-  updateFurnitureUI() {
-    const list = document.getElementById('ownedFurnitureList');
-    if (!list) return;
-    list.innerHTML = '';
+  toggleFurnitureTab(tab) {
+    const tabOwned = document.getElementById('tabFurnOwned');
+    const tabShop = document.getElementById('tabFurnShop');
+    const secOwned = document.getElementById('ownedFurnitureSection');
+    const secShop = document.getElementById('shopFurnitureSection');
 
-    if (this.farm.ownedFurniture.length === 0) {
-      list.innerHTML = '<p style="color:#747d8c; font-size:12px;">Belum ada perabotan di tas. Beli perabotan di Toko Pak Budi ya! 🛒</p>';
-      return;
+    if (tab === 'owned') {
+      if (tabOwned) { tabOwned.style.background = '#2ed573'; tabOwned.style.color = '#ffffff'; }
+      if (tabShop) { tabShop.style.background = '#dfe4ea'; tabShop.style.color = '#2f3542'; }
+      secOwned?.classList.remove('hidden');
+      secShop?.classList.add('hidden');
+    } else {
+      if (tabOwned) { tabOwned.style.background = '#dfe4ea'; tabOwned.style.color = '#2f3542'; }
+      if (tabShop) { tabShop.style.background = '#2ed573'; tabShop.style.color = '#ffffff'; }
+      secOwned?.classList.add('hidden');
+      secShop?.classList.remove('hidden');
+    }
+  }
+
+  updateFurnitureUI() {
+    const listOwned = document.getElementById('ownedFurnitureList');
+    const listShop = document.getElementById('shopFurnitureList');
+    const countSpan = document.getElementById('furnOwnedCount');
+    if (countSpan) countSpan.textContent = this.farm.ownedFurniture.length;
+
+    // 1. Owned furniture list
+    if (listOwned) {
+      listOwned.innerHTML = '';
+      if (this.farm.ownedFurniture.length === 0) {
+        listOwned.innerHTML = '<p style="color:#747d8c; font-size:12px; padding:12px 0;">Belum ada perabotan di tas. Buka tab <b>🛒 Katalog Beli Baru</b> di atas untuk membeli perabotan impianmu! ✨</p>';
+      } else {
+        this.farm.ownedFurniture.forEach((furnId, idx) => {
+          const def = window.FURNITURE_DEFINITIONS[furnId];
+          if (!def) return;
+          const item = document.createElement('div');
+          item.className = 'store-item-card';
+          item.innerHTML = `
+            <div style="font-size:24px;">${def.icon}</div>
+            <div style="flex:1;">
+              <strong>${def.name}</strong>
+              <p style="font-size:11px; color:#57606f;">${def.desc} (Ukuran: ${def.w}x${def.h})</p>
+            </div>
+            <button class="btn-buy" style="background:#2ed573; color:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer;">Pasang 🪑</button>
+          `;
+          item.querySelector('button').onclick = () => {
+            this.selectedFurnToPlace = furnId;
+            this.farm.ownedFurniture.splice(idx, 1);
+            document.getElementById('modalFurniturePlacement').classList.add('hidden');
+            this.showNotification(`Klik petak lantai rumah untuk meletakkan ${def.name}! ✨`);
+          };
+          listOwned.appendChild(item);
+        });
+      }
     }
 
-    this.farm.ownedFurniture.forEach((furnId, idx) => {
-      const def = FURNITURE_DEFINITIONS[furnId];
-      if (!def) return;
-      const item = document.createElement('div');
-      item.className = 'store-item-card';
-      item.innerHTML = `
-        <div style="font-size:24px;">${def.icon}</div>
-        <div style="flex:1;">
-          <strong>${def.name}</strong>
-          <p style="font-size:11px; color:#57606f;">Ukuran: ${def.w}x${def.h}</p>
-        </div>
-        <button class="btn-buy" style="background:#2ed573;">Pasang 🪑</button>
-      `;
-      item.querySelector('button').onclick = () => {
-        this.selectedFurnToPlace = furnId;
-        this.farm.ownedFurniture.splice(idx, 1);
-        document.getElementById('modalFurniturePlacement').classList.add('hidden');
-        this.showNotification(`Klik lantai rumah untuk meletakkan ${def.name}! ✨`);
-      };
-      list.appendChild(item);
-    });
+    // 2. In-House Furniture Shop Catalog
+    if (listShop) {
+      listShop.innerHTML = '';
+      Object.values(window.FURNITURE_DEFINITIONS).forEach(def => {
+        const card = document.createElement('div');
+        card.className = 'store-item-card';
+        card.style.display = 'flex';
+        card.style.alignItems = 'center';
+        card.style.gap = '10px';
+        card.style.padding = '8px';
+        card.style.background = '#f8f9fa';
+        card.style.borderRadius = '8px';
+        card.style.border = '1px solid #dfe4ea';
+
+        card.innerHTML = `
+          <div style="font-size:26px;">${def.icon}</div>
+          <div style="flex:1;">
+            <strong style="font-size:13px; color:#2c3e50;">${def.name}</strong>
+            <p style="font-size:11px; color:#7f8c8d; margin:2px 0;">${def.desc}</p>
+            <span style="font-weight:bold; color:#f39c12; font-size:12px;">💰 ${def.price} Koin</span>
+          </div>
+          <button class="btn-buy" style="background:#f39c12; color:white; border:none; padding:6px 14px; border-radius:6px; cursor:pointer; font-weight:bold;">Beli 🛒</button>
+        `;
+
+        card.querySelector('.btn-buy').onclick = () => {
+          if (this.farm.coins < def.price) {
+            this.showNotification(`Koin tidak mencukupi! Butuh ${def.price} koin. 💰`);
+            return;
+          }
+          this.farm.coins -= def.price;
+          this.farm.ownedFurniture.push(def.id);
+          this.farm.autoSave();
+          this.updateHUD();
+          this.updateFurnitureUI();
+          this.showNotification(`Berhasil membeli ${def.name}! Ditambahkan ke perabotanmu. 🪑✨`);
+        };
+        listShop.appendChild(card);
+      });
+    }
+  }
+
+  openHandbookModal() {
+    document.getElementById('modalHandbook')?.classList.remove('hidden');
   }
 
   performToolAction() {
@@ -813,11 +984,11 @@ class Game {
       const res = this.farm.eatCrop(currentItem);
       if (res) {
         if (res.full) {
-          this.showNotification('HP kamu sudah penuh! ❤️');
+          this.showNotification('Darahmu sudah penuh! (100/100 HP) ❤️');
         } else {
           if (window.soundSystem) window.soundSystem.playTill();
-          this.showDamage(this.player.x + 8, this.player.y - 10, '+' + res.heal + ' HP ❤️', '#2ed573');
-          this.showNotification('Memakan ' + res.def.name + '! Memulihkan +' + res.heal + ' HP! 🍎❤️');
+          this.showDamage(this.player.x + 8, this.player.y - 10, `+${res.percent}% HP ❤️`, '#2ed573');
+          this.showNotification(`Memakan ${res.def.name}! Memulihkan +${res.percent}% HP (+${res.heal} ❤️)`);
           this.renderHotbar();
           this.updateHUD();
         }
@@ -1754,8 +1925,25 @@ class Game {
     else if (loc === 'house_mc') { maxW = 16 * 16; maxH = 12 * 16; }
     else if (loc.startsWith('house_')) { maxW = 14 * 16; maxH = 10 * 16; }
 
-    this.camera.x = Math.max(0, Math.min(maxW - this.canvas.width / this.camera.scale, this.camera.x));
-    this.camera.y = Math.max(0, Math.min(maxH - this.canvas.height / this.camera.scale, this.camera.y));
+    const viewW = this.canvas.width / this.camera.scale;
+    const viewH = this.canvas.height / this.camera.scale;
+
+    if (loc.startsWith('house_')) {
+      // In house interiors, center the room completely in canvas center
+      this.camera.x = Math.round((maxW - viewW) / 2);
+      this.camera.y = Math.round((maxH - viewH) / 2);
+    } else {
+      if (maxW <= viewW) {
+        this.camera.x = Math.round((maxW - viewW) / 2);
+      } else {
+        this.camera.x = Math.max(0, Math.min(maxW - viewW, this.camera.x));
+      }
+      if (maxH <= viewH) {
+        this.camera.y = Math.round((maxH - viewH) / 2);
+      } else {
+        this.camera.y = Math.max(0, Math.min(maxH - viewH, this.camera.y));
+      }
+    }
 
     // Update Particles
     for (let i = this.particles.length - 1; i >= 0; i--) {
@@ -1800,13 +1988,18 @@ class Game {
 
   // --- RENDERING ---
   render() {
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    const loc = this.farm.currentLocation;
+    if (loc.startsWith('house_')) {
+      this.ctx.fillStyle = '#0d1117';
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    } else {
+      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }
 
     this.ctx.save();
     this.ctx.scale(this.camera.scale, this.camera.scale);
     this.ctx.translate(-Math.round(this.camera.x), -Math.round(this.camera.y));
 
-    const loc = this.farm.currentLocation;
     if (loc === 'farm') {
       this.renderOutdoorVillage();
     } else if (loc === 'house_mc') {
@@ -1897,18 +2090,30 @@ class Game {
         const py = y * 16;
 
         if (tile.type === 'fence' && imgFences) {
-          const hasLeft = x > 0 && this.farm.grid[y][x - 1]?.type === 'fence';
-          const hasRight = x < this.farm.cols - 1 && this.farm.grid[y][x + 1]?.type === 'fence';
-          const hasUp = y > 0 && this.farm.grid[y - 1][x]?.type === 'fence';
-          const hasDown = y < this.farm.rows - 1 && this.farm.grid[y + 1][x]?.type === 'fence';
+          const up = (y > 0 && this.farm.grid[y - 1][x]?.type === 'fence') ? 1 : 0;
+          const right = (x < this.farm.cols - 1 && this.farm.grid[y][x + 1]?.type === 'fence') ? 1 : 0;
+          const down = (y < this.farm.rows - 1 && this.farm.grid[y + 1][x]?.type === 'fence') ? 1 : 0;
+          const left = (x > 0 && this.farm.grid[y][x - 1]?.type === 'fence') ? 1 : 0;
 
-          let sx = 16, sy = 16;
-          if (hasLeft || hasRight) {
-            sx = 16; sy = 0; // connected horizontal rail
-          } else if (hasUp || hasDown) {
-            sx = 0; sy = 16; // connected vertical post
-          }
-          this.ctx.drawImage(imgFences, sx, sy, 16, 16, px, py, 16, 16);
+          let col = 0, row = 0;
+          if (!up && !right && !down && !left) { col = 0; row = 3; } // isolated post
+          else if (!up && right && !down && !left) { col = 1; row = 0; } // left end horizontal
+          else if (!up && !right && !down && left) { col = 3; row = 0; } // right end horizontal
+          else if (!up && right && !down && left) { col = 2; row = 0; } // horizontal middle
+          else if (up && !right && !down && !left) { col = 0; row = 2; } // bottom post vertical
+          else if (!up && !right && down && !left) { col = 0; row = 0; } // top post vertical
+          else if (up && !right && down && !left) { col = 0; row = 1; } // vertical middle
+          else if (!up && right && down && !left) { col = 1; row = 1; } // corner top-left
+          else if (!up && !right && down && left) { col = 3; row = 1; } // corner top-right
+          else if (up && right && !down && !left) { col = 1; row = 3; } // corner bottom-left
+          else if (up && !right && !down && left) { col = 3; row = 3; } // corner bottom-right
+          else if (!up && right && down && left) { col = 2; row = 1; } // T-junction down
+          else if (up && right && !down && left) { col = 2; row = 3; } // T-junction up
+          else if (up && right && down && !left) { col = 1; row = 2; } // T-junction right
+          else if (up && !right && down && left) { col = 3; row = 2; } // T-junction left
+          else if (up && right && down && left) { col = 2; row = 2; } // 4-way cross
+
+          this.ctx.drawImage(imgFences, col * 16, row * 16, 16, 16, px, py, 16, 16);
         }
         if (tile.type === 'chest' && imgChest) this.ctx.drawImage(imgChest, px, py, 16, 16);
         if (tile.type === 'sell_bin') {
@@ -1922,9 +2127,6 @@ class Game {
         }
         if (tile.type === 'well' && this.assets.well) {
           this.ctx.drawImage(this.assets.well, px - 2, py - 24, 20, 40);
-        }
-        if (x === 25 && y === 10 && this.assets.scarecrow) {
-          this.ctx.drawImage(this.assets.scarecrow, px, py - 8, 24, 28);
         }
 
         // --- SUNNYSIDE CROPS WITH REAL GROWTH STAGES (NO MORE PUMPKIN-ONLY GLITCH!) ---
@@ -2271,8 +2473,7 @@ class Game {
 
         if (cell.type === 'portal_village') {
           const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 300);
-          this.ctx.fillStyle = 
-gba(46, 204, 113, );
+          this.ctx.fillStyle = `rgba(46, 204, 113, ${pulse * 0.35})`;
           this.ctx.fillRect(px - 4, py - 4, 24, 24);
           this.ctx.strokeStyle = '#2ed573';
           this.ctx.lineWidth = 2;
@@ -2320,8 +2521,7 @@ gba(46, 204, 113, );
               if (altarImg) this.ctx.drawImage(altarImg, nx - 8, ny - 16, 32, 32);
               // Runic blue magical aura
               const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 250);
-              this.ctx.fillStyle = 
-gba(0, 210, 211, );
+              this.ctx.fillStyle = `rgba(0, 210, 211, ${pulse * 0.25})`;
               this.ctx.beginPath();
               this.ctx.arc(nx + 8, ny, 26, 0, Math.PI * 2);
               this.ctx.fill();
@@ -2330,8 +2530,7 @@ gba(0, 210, 211, );
               if (oreImg) this.ctx.drawImage(oreImg, nx, ny, 16, 16);
               // Purple crystal sparkle
               const shimmer = 0.5 + 0.5 * Math.sin((Date.now() + nx * 10) / 200);
-              this.ctx.fillStyle = 
-gba(155, 89, 182, );
+              this.ctx.fillStyle = `rgba(155, 89, 182, ${shimmer * 0.4})`;
               this.ctx.fillRect(nx + 2, ny + 2, 12, 12);
             } else if (node.type === 'woods_rock') {
               const rImg = this.assets.woods_rock || this.assets.rock_node;
@@ -2451,9 +2650,7 @@ gba(155, 89, 182, );
       const fx = ((i * 47 + time * 12) % (this.farm.woodsCols * 16));
       const fy = ((i * 31 + Math.sin(time + i) * 16 + 20) % (this.farm.woodsRows * 16));
       const alpha = 0.3 + 0.4 * Math.sin(time * 2 + i);
-      this.ctx.fillStyle = i % 2 === 0 ? 
-gba(46, 213, 115, ) : 
-gba(165, 94, 234, );
+      this.ctx.fillStyle = i % 2 === 0 ? `rgba(46, 213, 115, ${alpha})` : `rgba(165, 94, 234, ${alpha})`;
       this.ctx.beginPath();
       this.ctx.arc(fx, fy, 2, 0, Math.PI * 2);
       this.ctx.fill();
@@ -2611,15 +2808,82 @@ gba(165, 94, 234, );
       this.ctx.restore();
     }
 
-    // --- HELD ITEM IN HAND (Idle / Walk) ---
+    // --- REAL HAND-HELD EQUIPMENT (PIXEL ART IN HAND, NOT A FLOATING STICKER!) ---
     if (!char.isFishing && char.currentAction !== 'action') {
-      const heldId = isLocal ? this.farm.hotbar[this.farm.activeHotbarIndex] : null;
+      const heldId = isLocal ? this.farm.hotbar[this.farm.activeHotbarIndex] : (char.heldItem || null);
       if (heldId && window.ITEM_CATALOG && window.ITEM_CATALOG[heldId]) {
+        const itemDef = window.ITEM_CATALOG[heldId];
+        const bobY = char.isMoving ? Math.sin((char.animFrame || 0) * Math.PI) * 1.5 : 0;
+        const dir = char.dir || 'down';
+
         this.ctx.save();
-        this.ctx.font = '11px sans-serif';
-        const hx = char.x + (char.dir === 'left' ? 4 : 20);
-        const hy = char.y + 18 + (char.isMoving ? Math.sin(char.animFrame * 2) * 1.5 : 0);
-        this.ctx.fillText(window.ITEM_CATALOG[heldId].icon, hx, hy);
+
+        // 1. Tool / Weapon Pixel Sprites
+        let toolSprite = null;
+        if (heldId === 'axe') toolSprite = this.assets.tool_axe;
+        else if (heldId === 'pickaxe') toolSprite = this.assets.tool_pickaxe;
+        else if (heldId === 'hoe') toolSprite = this.assets.tool_hoe;
+        else if (heldId === 'water') toolSprite = this.assets.tool_water;
+        else if (heldId === 'sword_iron' || heldId === 'sword') toolSprite = this.assets.tool_sword;
+        else if (heldId === 'fishing_rod' || heldId === 'rod') toolSprite = this.assets.tool_rod;
+
+        if (toolSprite) {
+          let gripX = char.x + 20;
+          let gripY = char.y + 19 + bobY;
+          let angle = 0;
+          let flipH = false;
+
+          if (dir === 'down') {
+            gripX = char.x + 21;
+            gripY = char.y + 19 + bobY;
+            angle = -0.25; // Tilted slightly outward
+          } else if (dir === 'up') {
+            gripX = char.x + 10;
+            gripY = char.y + 18 + bobY;
+            angle = 0.35;
+          } else if (dir === 'right') {
+            gripX = char.x + 21;
+            gripY = char.y + 18 + bobY;
+            angle = 0.35;
+          } else if (dir === 'left') {
+            gripX = char.x + 11;
+            gripY = char.y + 18 + bobY;
+            angle = -0.35;
+            flipH = true;
+          }
+
+          this.ctx.translate(gripX, gripY);
+          if (flipH) this.ctx.scale(-1, 1);
+          this.ctx.rotate(angle);
+
+          // Draw tool sprite with handle firmly gripped
+          this.ctx.drawImage(toolSprite, -3, -11, 14, 14);
+
+          // Draw pixel hand fingers grasping around the handle
+          this.ctx.fillStyle = char.role === 'girl' ? '#ffd8c2' : '#f5c6a5';
+          this.ctx.fillRect(-2, -3, 3, 3);
+          this.ctx.fillStyle = '#d39e82';
+          this.ctx.fillRect(-1, -2, 2, 1);
+        } else {
+          // 2. Crop / Food / Seed Held in Both Hands in front of chest
+          const holdX = char.x + 16;
+          const holdY = char.y + 18 + bobY;
+          const cropSprite = this.assets[`crop_${itemDef.cropId || heldId}_5`];
+
+          if (cropSprite) {
+            this.ctx.drawImage(cropSprite, holdX - 6, holdY - 8, 12, 12);
+          } else {
+            this.ctx.font = '11px sans-serif';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(itemDef.icon, holdX, holdY + 2);
+          }
+
+          // Hands holding item
+          this.ctx.fillStyle = char.role === 'girl' ? '#ffd8c2' : '#f5c6a5';
+          this.ctx.fillRect(holdX - 7, holdY - 2, 3, 2);
+          this.ctx.fillRect(holdX + 4, holdY - 2, 3, 2);
+        }
+
         this.ctx.restore();
       }
     }
